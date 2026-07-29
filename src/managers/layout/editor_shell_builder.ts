@@ -11,6 +11,7 @@ import { CommandStack } from '../../commands/command_stack.js';
 import { GridSnap } from '../../transform/snap/grid_snap.js';
 import { TextureLockSettings } from '../../texture/lock/texture_lock_settings.js';
 import { createAddMenuEntries } from './add_menu_entries.js';
+import { commitGreyBoxDescription } from '../hierarchy/grey_box_description_commit.js';
 import type { OutlinerDropPlacement } from '../../ui/outliner/outliner_drop_placement.js';
 
 /**
@@ -334,6 +335,9 @@ export class EditorShellBuilder {
     const propertiesPanel = new PropertiesPanel(mainLayout, Theme, selectionManager);
     propertiesPanel.setCommandStack(commandStack);
     propertiesPanel.setTextureLockSettings(textureLock);
+    propertiesPanel.setGreyBoxDescriptionCommitter((greyBox, description) =>
+      commitGreyBoxDescription(commandStack, greyBox, description),
+    );
     return propertiesPanel;
   }
 

@@ -9,7 +9,9 @@ import { SetScaleCommand } from '../../commands/transform/set_scale_command.js';
 import { TextureLockSettings } from '../../texture/lock/texture_lock_settings.js';
 import { filterUnlockedObjects } from '../../utils/object_lock.js';
 import { SolidBrushVisual } from '../../solid/model/solid_brush_visual.js';
-import { PropertiesSolidBrushSection, SolidBrushPropertyHandlers } from './properties_solid_brush_section.js';
+import { SolidBrushPropertyHandlers } from './properties_solid_brush_section.js';
+import { PropertiesContextSections } from './properties_context_sections.js';
+import type { GreyBoxDescriptionCommitter } from './properties_grey_box_section.js';
 import { PropertiesColorSession } from './properties_color_session.js';
 
 export type { SolidBrushPropertyHandlers };
@@ -47,7 +49,7 @@ export class PropertiesPanel {
   private sections: HTMLElement[];
   private inputChangeHandlers: { input: HTMLInputElement; handler: () => void }[];
   private colorSession: PropertiesColorSession;
-  private solidBrushSection: PropertiesSolidBrushSection;
+  private contextSections: PropertiesContextSections;
   /**
    * Layout callback after inspector transform commands. Must refresh 2D clones,
    * selection outlines, brush hulls, CAD rulers, and gizmo (same contract as
@@ -78,13 +80,13 @@ export class PropertiesPanel {
     this.inputChangeHandlers = [];
     this.colorSession = new PropertiesColorSession();
     this.afterTransformCommit = null;
-    this.solidBrushSection = new PropertiesSolidBrushSection(
+    this.contextSections = new PropertiesContextSections(
       this.theme,
       () => this.createSectionContainer(),
       (title) => this.createSectionHeader(title),
       (hex) => this.hexToRgb(hex),
     );
-    this.solidBrushSection.setEditableBrushMeshProvider(() =>
+    this.contextSections.setEditableBrushMeshProvider(() =>
       this.getEditableBoundObjects().filter(
         (object): object is THREE.Mesh => object instanceof THREE.Mesh && SolidBrushVisual.isBrushObject(object),
       ),
@@ -94,7 +96,7 @@ export class PropertiesPanel {
     this.createRotationSection();
     this.createScaleSection();
     this.createMaterialSection();
-    this.mountSolidBrushSection();
+    this.mountContextSections();
     container.appendChild(this.container);
     this.bindSelectionChanges();
   }
@@ -105,7 +107,17 @@ export class PropertiesPanel {
    * @param handlers Brush property handlers, or null to clear.
    */
   setSolidBrushHandlers(handlers: SolidBrushPropertyHandlers | null): void {
-    this.solidBrushSection.setHandlers(handlers);
+    this.contextSections.setSolidBrushHandlers(handlers);
+  }
+
+  /**
+   * Wires the callback that commits a grey box description edit as one undoable
+   * step. Without it the description field stays read-only.
+   *
+   * @param committer Commit callback, or null to clear.
+   */
+  setGreyBoxDescriptionCommitter(committer: GreyBoxDescriptionCommitter | null): void {
+    this.contextSections.setGreyBoxDescriptionCommitter(committer);
   }
 
   /**
@@ -163,7 +175,7 @@ export class PropertiesPanel {
     this.colorSession.finalize();
     this.boundObjects = [];
     this.clearAllInputs();
-    this.solidBrushSection.updateFromObjects([]);
+    this.contextSections.clear();
   }
 
   /**
@@ -192,7 +204,7 @@ export class PropertiesPanel {
   updateFromObjects(objects: THREE.Object3D[]): void {
     if (objects.length === 0) {
       this.clearAllInputs();
-      this.solidBrushSection.updateFromObjects([]);
+      this.contextSections.clear();
       return;
     }
     this.writeVectorInputs(
@@ -211,12 +223,13 @@ export class PropertiesPanel {
       2,
     );
     this.updateColorFromObjects(objects);
-    this.solidBrushSection.updateFromObjects(objects);
+    this.contextSections.updateFromObjects(objects);
   }
 
   /** Disposes the panel and removes it from the DOM. */
   dispose(): void {
     this.isDisposed = true;
+    this.contextSections.commitPendingEdits();
     this.colorSession.finalize();
     this.removeInputChangeListeners();
     this.positionInputs.clear();
@@ -586,11 +599,9 @@ export class PropertiesPanel {
     this.container.appendChild(section);
   }
 
-  /** Mounts the solid brush section into the panel. */
-  private mountSolidBrushSection(): void {
-    const element = this.solidBrushSection.getElement();
-    this.sections.push(element);
-    this.container.appendChild(element);
+  /** Mounts the type-specific inspector sections into the panel. */
+  private mountContextSections(): void {
+    this.contextSections.mountInto(this.container, (section) => this.sections.push(section));
   }
 
   /**
