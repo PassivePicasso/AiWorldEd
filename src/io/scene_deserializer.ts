@@ -12,6 +12,8 @@ import { DEFAULT_CHECKER_TEXTURE_ID } from '../texture/library/texture_id.js';
 import { CLIP_PREVIEW_USERDATA_KEY } from '../managers/clip_plane/clip_plane_preview.js';
 import { SolidModelCodec } from '../solid/io/solid_model_codec.js';
 import { SerializedSolidModel } from '../solid/io/solid_model_codec.js';
+import { GreyBoxCodec } from '../greybox/io/grey_box_codec.js';
+import { GreyBoxRegistry } from '../greybox/model/grey_box_registry.js';
 
 /**
  * Reconstructs a Three.js scene graph from serialized JSON data. Performs two
@@ -132,10 +134,28 @@ export class SceneDeserializer {
     if (entry.solidModel) {
       return this.createSolidModelFromEntry(entry);
     }
+    if (entry.greyBox) {
+      return this.createGreyBoxFromEntry(entry);
+    }
     if (entry.type === 'mesh') {
       return this.createMeshFromEntry(entry);
     }
     return this.createGroupFromEntry(entry);
+  }
+
+  /**
+   * Restores a grey box planning volume: the box mesh plus its registered
+   * layout payload. A malformed payload throws with the offending object
+   * named.
+   *
+   * @param entry Serialized entry carrying a greyBox payload.
+   * @returns Marked and registered grey box mesh.
+   */
+  private createGreyBoxFromEntry(entry: ObjectEntry): THREE.Mesh {
+    const mesh = this.createMeshFromEntry(entry);
+    const data = GreyBoxCodec.decode(entry.greyBox, `"${entry.name}" (${entry.uuid})`);
+    GreyBoxRegistry.register(mesh, data);
+    return mesh;
   }
 
   /**

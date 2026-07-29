@@ -4,6 +4,7 @@ import { SolidModel } from '../solid/model/solid_model.js';
 import { DECORATIVE_EDGE_USERDATA_KEY, isSolidBrushEdge } from '../utils/mesh_edge_sync.js';
 import { SELECTION_HIGHLIGHT_USERDATA_KEY } from '../selection/object/selection_highlight.js';
 import { CONTENT_METALNESS, CONTENT_ROUGHNESS } from '../materials/content_material_factory.js';
+import { isGreyBox } from '../greybox/model/grey_box_keys.js';
 
 /**
  * Builds a temporary scene graph for GLB/export that contains only game
@@ -53,6 +54,7 @@ function cloneObjectForExport(object: THREE.Object3D): THREE.Object3D | null {
  */
 export function shouldOmitFromExport(object: THREE.Object3D): boolean {
   if (SolidBrushVisual.isBrushObject(object)) return true;
+  if (isGreyBox(object)) return true;
   if (isSolidBrushEdge(object)) return true;
   if (object.userData[DECORATIVE_EDGE_USERDATA_KEY] === true) return true;
   if (object.userData[SELECTION_HIGHLIGHT_USERDATA_KEY] === true) return true;

@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeEach } from 'vitest';
 import * as THREE from 'three';
-import { SceneSerializer } from '../../src/io/scene_serializer.js';
+import { SceneSerializer, SCENE_SCHEMA_VERSION } from '../../src/io/scene_serializer.js';
 
 describe('SceneSerializer', () => {
   let worldGroup: THREE.Group;
@@ -16,9 +16,9 @@ describe('SceneSerializer', () => {
     expect(result.objects.length).toBe(0);
   });
 
-  it('should set version number to 3', () => {
+  it('should stamp the current scene schema version', () => {
     const result = serializer.serialize(worldGroup);
-    expect(result.version).toBe(3);
+    expect(result.version).toBe(SCENE_SCHEMA_VERSION);
   });
 
   it('should serialize single mesh with correct position', () => {

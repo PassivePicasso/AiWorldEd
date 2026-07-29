@@ -3,6 +3,8 @@
  * used for saving and loading scenes.
  */
 
+import type { SerializedGreyBox } from '../greybox/io/grey_box_codec.js';
+
 /**
  * Supported geometry classifications in scene files. Primitive types store
  * constructor params; buffer stores raw vertex data.
@@ -72,6 +74,11 @@ export interface ObjectEntry {
   materialColor?: number;
   /** Per-face texture projection parameters for UV re-bake. */
   faceTextureMaps?: SerializedFaceTextureMap[];
+  /**
+   * Layout payload present only on grey box planning volumes. Its presence is
+   * what identifies the entry as a grey box on load.
+   */
+  greyBox?: SerializedGreyBox;
   /** Optional solid-model brush tree for CSG solid meshes. */
   solidModel?: {
     brushes: Array<{

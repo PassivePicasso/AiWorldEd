@@ -1,7 +1,7 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 import * as THREE from 'three';
 import { SceneIOHandler } from '../../../src/managers/tools/scene_io_handler.js';
-import { SceneSerializer } from '../../../src/io/scene_serializer.js';
+import { SceneSerializer, SCENE_SCHEMA_VERSION } from '../../../src/io/scene_serializer.js';
 import { SceneDeserializer } from '../../../src/io/scene_deserializer.js';
 
 describe('SceneIOHandler', () => {
@@ -19,7 +19,7 @@ describe('SceneIOHandler', () => {
     worldGroup.add(mesh);
     const serializer = new SceneSerializer();
     const sceneData = serializer.serialize(worldGroup);
-    expect(sceneData.version).toBe(3);
+    expect(sceneData.version).toBe(SCENE_SCHEMA_VERSION);
     expect(sceneData.objects.length).toBe(1);
     expect(sceneData.objects[0]!.name).toBe('SavedCube');
     expect(sceneData.objects[0]!.position.x).toBe(1);

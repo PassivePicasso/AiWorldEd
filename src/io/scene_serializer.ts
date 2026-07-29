@@ -5,12 +5,15 @@ import { getFaceTextureMaps } from '../texture/uv/face_texture_storage.js';
 import { resolveGeometrySourceParams, resolveGeometrySourceType } from '../texture/uv/geometry_source.js';
 import { SolidModel } from '../solid/model/solid_model.js';
 import { SolidModelCodec } from '../solid/io/solid_model_codec.js';
+import { isGreyBox } from '../greybox/model/grey_box_keys.js';
+import { GreyBoxRegistry } from '../greybox/model/grey_box_registry.js';
+import { GreyBoxCodec } from '../greybox/io/grey_box_codec.js';
 
 /**
- * Schema version for serialized scene files. Version 3 adds face texture maps
- * and optional buffer UV channels.
+ * Schema version for serialized scene files. Version 3 added face texture maps
+ * and optional buffer UV channels; version 4 adds grey box planning volumes.
  */
-const SCHEMA_VERSION = 3;
+export const SCENE_SCHEMA_VERSION = 4;
 
 /**
  * Serializes a Three.js scene graph into a JSON-compatible structure. Walks the
@@ -34,7 +37,7 @@ export class SceneSerializer {
     const entries: ObjectEntry[] = [];
     this.collectEntries(worldGroup, entries);
     return {
-      version: SCHEMA_VERSION,
+      version: SCENE_SCHEMA_VERSION,
       objects: entries,
     };
   }
@@ -178,6 +181,7 @@ export class SceneSerializer {
     entry.geometryType = geometryType;
     entry.materialColor = this.extractMaterialColor(mesh);
     this.attachFaceTextureMaps(mesh, entry);
+    this.attachGreyBoxData(mesh, entry);
     if (geometryType === 'buffer') {
       entry.geometryData = this.bufferGeometryCodec.encode(mesh.geometry);
       return entry;
@@ -198,6 +202,19 @@ export class SceneSerializer {
     if (!model || model.root !== object) return;
     const solidModel = SolidModelCodec.encode(model) as unknown as NonNullable<ObjectEntry['solidModel']>;
     entry.solidModel = solidModel;
+  }
+
+  /**
+   * Serializes the layout payload of a grey box planning volume. A marked mesh
+   * without registered data throws rather than saving a grey box that would
+   * load back without its description and connections.
+   *
+   * @param mesh Source mesh.
+   * @param entry Entry to enrich.
+   */
+  private attachGreyBoxData(mesh: THREE.Mesh, entry: ObjectEntry): void {
+    if (!isGreyBox(mesh)) return;
+    entry.greyBox = GreyBoxCodec.encode(GreyBoxRegistry.get(mesh));
   }
 
   /**
