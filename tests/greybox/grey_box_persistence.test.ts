@@ -5,6 +5,7 @@ import { SceneDeserializer } from '../../src/io/scene_deserializer.js';
 import { SceneJSON } from '../../src/io/io_types.js';
 import { GreyBoxRegistry } from '../../src/greybox/model/grey_box_registry.js';
 import { isGreyBox } from '../../src/greybox/model/grey_box_keys.js';
+import { isGreyBoxOutline } from '../../src/greybox/model/grey_box_visual.js';
 import { createExplicitConnection } from '../../src/greybox/model/grey_box_connection.js';
 import { greyBoxPairKey } from '../../src/greybox/model/grey_box_pair_key.js';
 import { allocateGreyBoxId } from '../../src/greybox/model/grey_box_id.js';
@@ -112,6 +113,16 @@ describe('grey box scene persistence', () => {
     expect(restored.description).toBe('tall central space');
     expect(restored.explicitConnections.length).toBe(1);
     expect(restored.explicitConnections[0]!.kind).toBe('door');
+  });
+
+  it('restores the grey box look rather than ordinary content material', () => {
+    const { mesh } = createGreyBoxFixture('Atrium', size(8, 5, 8), at(0, 0, 0), 'tall space');
+    world.add(mesh);
+    const restored = onlyGreyBox(roundTrip(serializer, deserializer, world)) as THREE.Mesh;
+    const material = restored.material as THREE.Material;
+    expect(material.transparent).toBe(true);
+    expect(material.depthWrite).toBe(false);
+    expect(restored.children.some((child) => isGreyBoxOutline(child))).toBe(true);
   });
 
   it('refuses to save a marked mesh whose payload was never registered', () => {

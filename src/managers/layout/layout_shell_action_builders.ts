@@ -29,6 +29,7 @@ export interface LayoutShellActionSource {
   onSelectionChanged: () => void;
   onAddTerrain: () => void;
   onAddSolidModel: () => void;
+  onAddGreyBox: () => void;
   onUndo: () => void;
   onRedo: () => void;
   onToggleUvEditor: () => void;
@@ -110,6 +111,7 @@ export function createToolbarShellActions(source: LayoutShellActionSource) {
     getSnapSettingsController: () => source.snapSettingsController,
     onAddTerrain: () => source.onAddTerrain(),
     onAddSolidModel: () => source.onAddSolidModel(),
+    onAddGreyBox: () => source.onAddGreyBox(),
     onUndo: () => source.onUndo(),
     onRedo: () => source.onRedo(),
     onToggleUvEditor: () => source.onToggleUvEditor(),

@@ -8,6 +8,7 @@ export interface AddMenuActions {
   onAddPlane: () => void;
   onAddTerrain: () => void;
   onAddSolidModel: () => void;
+  onAddGreyBox: () => void;
 }
 
 /**
@@ -47,6 +48,11 @@ export function createAddMenuEntries(actions: AddMenuActions): ToolbarMenuEntry[
       kind: 'submenu',
       label: 'Brushes',
       children: [{ label: 'Solid Model', onClick: () => actions.onAddSolidModel() }],
+    },
+    {
+      kind: 'submenu',
+      label: 'Layout',
+      children: [{ label: 'Grey Box', onClick: () => actions.onAddGreyBox() }],
     },
   ];
 }

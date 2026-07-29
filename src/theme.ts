@@ -32,6 +32,13 @@ export const Theme = Object.freeze({
   separatorGapPx: 4,
   boxColor: 0xffffff,
   boxEdgeColor: 0xaaaaaa,
+  /**
+   * Grey box planning volume fill: cool desaturated grey, never mistaken for
+   * geometry.
+   */
+  greyBoxColor: 0x8895a6,
+  /** Grey box outline: brighter cool edge that stays readable in 2D views. */
+  greyBoxEdgeColor: 0xc2d0e0,
   lightAmbient: 0xffffff,
   lightDirectional: 0xffffff,
   viewportLabelTextColor: '#c8c8c8',

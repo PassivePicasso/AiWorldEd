@@ -20,6 +20,7 @@ import { CommandStack } from '../../commands/command_stack.js';
 import { StatusBar } from '../../ui/status_bar.js';
 import { ViewportSyncManager } from './viewport_sync_manager.js';
 import { PrimitiveCreationHandler } from '../creation/primitive_creation_handler.js';
+import { GreyBoxCreationHandler } from '../creation/grey_box_creation_handler.js';
 import { KeyboardShortcutHandler } from '../input/keyboard_shortcut_handler.js';
 import { ObjectActionHandler } from '../hierarchy/object_action_handler.js';
 import { AlignmentHandler } from '../hierarchy/alignment_handler.js';
@@ -157,6 +158,7 @@ export abstract class ViewportLayoutCore {
   protected statusBar!: StatusBar | null;
   protected viewportSyncManager!: ViewportSyncManager;
   protected primitiveCreationHandler!: PrimitiveCreationHandler;
+  protected greyBoxCreationHandler!: GreyBoxCreationHandler;
   protected keyboardShortcutHandler!: KeyboardShortcutHandler;
   protected objectActionHandler!: ObjectActionHandler;
   protected alignmentHandler!: AlignmentHandler;
@@ -563,6 +565,19 @@ export abstract class ViewportLayoutCore {
     this.primitiveCreationHandler.setOnPrimitiveCreated(() => this.onPrimitiveCreated());
     this.primitiveCreationHandler.setActiveCameraProvider(() => this.getActiveSpawnCamera());
     this.primitiveCreationHandler.setGridIntervalProvider(() => this.gridSnap.getInterval());
+    this.createGreyBoxHandler();
+  }
+
+  /** Creates grey box planning volume wiring, sharing primitive spawn placement. */
+  protected createGreyBoxHandler(): void {
+    this.greyBoxCreationHandler = new GreyBoxCreationHandler(
+      this.worldObject,
+      this.commandStack,
+      this.selectionManager,
+    );
+    this.greyBoxCreationHandler.setOnGreyBoxCreated(() => this.onPrimitiveCreated());
+    this.greyBoxCreationHandler.setActiveCameraProvider(() => this.getActiveSpawnCamera());
+    this.greyBoxCreationHandler.setGridIntervalProvider(() => this.gridSnap.getInterval());
   }
 
   /**

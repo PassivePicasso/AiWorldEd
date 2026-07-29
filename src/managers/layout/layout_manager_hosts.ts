@@ -41,6 +41,7 @@ export interface LayoutShellHostCallbacks {
   onOpenDetachedViewport(): void;
   onAddTerrain(): void;
   onAddSolidModel(): void;
+  onAddGreyBox(): void;
   onUndo(): void;
   onRedo(): void;
   onDeleteSelected(): void;
@@ -144,6 +145,7 @@ export function createShellSourceHostFromLayout(
     onOpenDetachedViewport: () => actions.onOpenDetachedViewport(),
     onAddTerrain: () => actions.onAddTerrain(),
     onAddSolidModel: () => actions.onAddSolidModel(),
+    onAddGreyBox: () => actions.onAddGreyBox(),
     onUndo: () => actions.onUndo(),
     onRedo: () => actions.onRedo(),
     onDeleteSelected: () => actions.onDeleteSelected(),

@@ -43,6 +43,7 @@ export interface EditorToolbarActions {
   onAddPlane: () => void;
   onAddTerrain: () => void;
   onAddSolidModel: () => void;
+  onAddGreyBox: () => void;
   onUndo: () => void;
   onRedo: () => void;
   onToggleUvEditor: () => void;

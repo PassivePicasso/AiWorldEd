@@ -2,6 +2,7 @@ import * as THREE from 'three';
 import { SELECTION_HIGHLIGHT_USERDATA_KEY } from '../selection/object/selection_highlight.js';
 import { DECORATIVE_EDGE_USERDATA_KEY } from '../utils/mesh_edge_sync.js';
 import { SOLID_BRUSH_EDGE_USERDATA_KEY } from '../solid/model/solid_brush_edge_materials.js';
+import { isGreyBox } from '../greybox/model/grey_box_keys.js';
 
 /** Default distance ahead of the camera when nothing occludes the view ray. */
 export const DEFAULT_SPAWN_DISTANCE = 8;
@@ -291,6 +292,7 @@ function collectSpawnRaycastMeshes(root: THREE.Object3D): THREE.Mesh[] {
 export function isSpawnRaycastMesh(object: THREE.Object3D): object is THREE.Mesh {
   if (!(object instanceof THREE.Mesh)) return false;
   if (!object.visible) return false;
+  if (isGreyBox(object)) return false;
   if (object.userData[SELECTION_HIGHLIGHT_USERDATA_KEY] === true) return false;
   if (object.userData[DECORATIVE_EDGE_USERDATA_KEY] === true) return false;
   if (object.userData[SOLID_BRUSH_EDGE_USERDATA_KEY] === true) return false;

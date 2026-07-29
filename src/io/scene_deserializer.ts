@@ -14,6 +14,7 @@ import { SolidModelCodec } from '../solid/io/solid_model_codec.js';
 import { SerializedSolidModel } from '../solid/io/solid_model_codec.js';
 import { GreyBoxCodec } from '../greybox/io/grey_box_codec.js';
 import { GreyBoxRegistry } from '../greybox/model/grey_box_registry.js';
+import { applyGreyBoxVisual, createGreyBoxMaterial } from '../greybox/model/grey_box_visual.js';
 
 /**
  * Reconstructs a Three.js scene graph from serialized JSON data. Performs two
@@ -152,8 +153,10 @@ export class SceneDeserializer {
    * @returns Marked and registered grey box mesh.
    */
   private createGreyBoxFromEntry(entry: ObjectEntry): THREE.Mesh {
-    const mesh = this.createMeshFromEntry(entry);
     const data = GreyBoxCodec.decode(entry.greyBox, `"${entry.name}" (${entry.uuid})`);
+    const mesh = new THREE.Mesh(this.reconstructGeometry(entry), createGreyBoxMaterial());
+    this.applyTransformToMesh(mesh, entry);
+    applyGreyBoxVisual(mesh);
     GreyBoxRegistry.register(mesh, data);
     return mesh;
   }

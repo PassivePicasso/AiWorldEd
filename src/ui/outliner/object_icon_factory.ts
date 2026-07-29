@@ -4,6 +4,7 @@ import { SolidModel } from '../../solid/model/solid_model.js';
 import { SolidBrushVisual } from '../../solid/model/solid_brush_visual.js';
 import { getSolidGroupOperation, isSolidCsgGroup } from '../../solid/model/solid_group.js';
 import { SolidOperation } from '../../solid/types/solid_operation.js';
+import { isGreyBox } from '../../greybox/model/grey_box_keys.js';
 
 /** Icon configuration for different object types in the outliner. */
 export interface ObjectIcon {
@@ -62,6 +63,9 @@ export class ObjectIconFactory {
    * @returns The icon configuration with character and color.
    */
   static getIcon(obj: THREE.Object3D): ObjectIcon {
+    if (isGreyBox(obj)) {
+      return this.getGreyBoxIcon();
+    }
     if (SolidModel.isSolidModelObject(obj)) {
       return this.getSolidModelIcon();
     }
@@ -166,6 +170,16 @@ export class ObjectIconFactory {
       badgeCssDot: true,
       badgeColor: this.colorForSolidOperation(operation),
     };
+  }
+
+  /**
+   * Returns the icon for a grey box planning volume: a hollow box in the cool
+   * grey family, distinct from both content boxes and solid brushes.
+   *
+   * @returns The grey box icon configuration.
+   */
+  private static getGreyBoxIcon(): ObjectIcon {
+    return { character: '▢', color: '#8895a6' };
   }
 
   /**

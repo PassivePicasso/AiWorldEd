@@ -47,6 +47,7 @@ export interface ToolbarActionHost {
   getSnapSettingsController: () => SnapSettingsController;
   onAddTerrain: () => void;
   onAddSolidModel: () => void;
+  onAddGreyBox: () => void;
   onUndo: () => void;
   onRedo: () => void;
   onToggleUvEditor: () => void;
@@ -158,6 +159,7 @@ function buildPrimitiveToolbarActions(
   | 'onAddPlane'
   | 'onAddTerrain'
   | 'onAddSolidModel'
+  | 'onAddGreyBox'
   | 'onToggleUvEditor'
   | 'onToggleTextureBrowser'
   | 'onToggleToolsPalette'
@@ -175,6 +177,7 @@ function buildPrimitiveToolbarActions(
     onAddPlane: () => host.getPrimitiveCreationHandler().createPlane(),
     onAddTerrain: () => host.onAddTerrain(),
     onAddSolidModel: () => host.onAddSolidModel(),
+    onAddGreyBox: () => host.onAddGreyBox(),
     onToggleUvEditor: () => host.onToggleUvEditor(),
     onToggleTextureBrowser: () => host.onToggleTextureBrowser(),
     onToggleToolsPalette: () => host.onToggleToolsPalette(),

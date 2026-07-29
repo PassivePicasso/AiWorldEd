@@ -59,6 +59,7 @@ describe('createToolbarShellActions', () => {
       },
       onAddTerrain: () => undefined,
       onAddSolidModel: () => undefined,
+      onAddGreyBox: () => undefined,
       onUndo: () => undefined,
       onRedo: () => undefined,
       onToggleUvEditor: () => undefined,

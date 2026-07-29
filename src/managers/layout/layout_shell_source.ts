@@ -41,6 +41,7 @@ export interface LayoutShellSourceHost {
   onOpenDetachedViewport(): void;
   onAddTerrain(): void;
   onAddSolidModel(): void;
+  onAddGreyBox(): void;
   onUndo(): void;
   onRedo(): void;
   onDeleteSelected(): void;
@@ -198,6 +199,7 @@ function buildShellEditCallbacks(
   LayoutShellActionSource,
   | 'onAddTerrain'
   | 'onAddSolidModel'
+  | 'onAddGreyBox'
   | 'onUndo'
   | 'onRedo'
   | 'onDeleteSelected'
@@ -209,6 +211,7 @@ function buildShellEditCallbacks(
   return {
     onAddTerrain: () => host.onAddTerrain(),
     onAddSolidModel: () => host.onAddSolidModel(),
+    onAddGreyBox: () => host.onAddGreyBox(),
     onUndo: () => host.onUndo(),
     onRedo: () => host.onRedo(),
     onDeleteSelected: () => host.onDeleteSelected(),

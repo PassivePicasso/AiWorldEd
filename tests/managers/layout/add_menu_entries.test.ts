@@ -33,10 +33,11 @@ describe('createAddMenuEntries', () => {
   it('groups every creation action into the expected category', () => {
     const actions = createActionSpies();
     const entries = createAddMenuEntries(actions);
-    expect(getEntryLabels(entries)).toEqual(['Geometry', 'Terrain', 'Brushes']);
+    expect(getEntryLabels(entries)).toEqual(['Geometry', 'Terrain', 'Brushes', 'Layout']);
     expect(getEntryLabels(getSubmenuChildren(entries[0]!))).toEqual(['Cube', 'Sphere', 'Cylinder', 'Plane']);
     expect(getEntryLabels(getSubmenuChildren(entries[1]!))).toEqual(['Terrain']);
     expect(getEntryLabels(getSubmenuChildren(entries[2]!))).toEqual(['Solid Model']);
+    expect(getEntryLabels(getSubmenuChildren(entries[3]!))).toEqual(['Grey Box']);
   });
 
   it('routes every categorized item to its existing creation callback', () => {
@@ -63,5 +64,6 @@ function createActionSpies(): AddMenuActions {
     onAddPlane: vi.fn(),
     onAddTerrain: vi.fn(),
     onAddSolidModel: vi.fn(),
+    onAddGreyBox: vi.fn(),
   };
 }

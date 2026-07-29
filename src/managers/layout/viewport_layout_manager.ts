@@ -118,6 +118,7 @@ export class ViewportLayoutManager extends ViewportLayoutCore {
         onOpenDetachedViewport: () => layout.onOpenDetachedViewport(),
         onAddTerrain: () => layout.onAddTerrain(),
         onAddSolidModel: () => layout.onAddSolidModel(),
+        onAddGreyBox: () => layout.onAddGreyBox(),
         onUndo: () => layout.onUndo(),
         onRedo: () => layout.onRedo(),
         onDeleteSelected: () => layout.onDeleteSelected(),
@@ -424,6 +425,12 @@ export class ViewportLayoutManager extends ViewportLayoutCore {
   /** Handles post-primitive-creation synchronization and UI refresh. */
   protected onPrimitiveCreated(): void {
     this.refreshAfterWorldMutation();
+  }
+
+  /** Creates a grey box planning volume in view and selects it. */
+  private onAddGreyBox(): void {
+    const mesh = this.greyBoxCreationHandler.createGreyBox();
+    this.showStatusMessage(`Created ${mesh.name}`);
   }
 
   /** Creates a procedural terrain mesh and selects it. */

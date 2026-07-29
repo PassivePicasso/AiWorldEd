@@ -5,6 +5,7 @@ import { SolidModel } from '../../src/solid/model/solid_model.js';
 import { SolidOperation } from '../../src/solid/types/solid_operation.js';
 import { SolidBrushVisual } from '../../src/solid/model/solid_brush_visual.js';
 import { markAsSolidCsgGroup, setSolidGroupOperation } from '../../src/solid/model/solid_group.js';
+import { createDefaultGreyBoxMesh } from '../../src/greybox/model/grey_box_factory.js';
 
 describe('ObjectIconFactory.getIcon', () => {
   it('should return group icon for THREE.Group', () => {
@@ -144,6 +145,14 @@ describe('ObjectIconFactory.getIcon', () => {
     const icon = ObjectIconFactory.getIcon(obj);
     expect(icon.character).toBe('○');
     expect(icon.color).toBe('#7f8c8d');
+  });
+
+  it('should return a distinct icon for a grey box planning volume', () => {
+    const greyBox = createDefaultGreyBoxMesh('GreyBox001');
+    const icon = ObjectIconFactory.getIcon(greyBox);
+    const contentBox = new THREE.Mesh(new THREE.BoxGeometry(1, 1, 1), new THREE.MeshBasicMaterial());
+    expect(icon.character).toBe('▢');
+    expect(icon.character).not.toBe(ObjectIconFactory.getIcon(contentBox).character);
   });
 
   it('should return ambient light icon for AmbientLight', () => {
