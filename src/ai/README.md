@@ -110,29 +110,33 @@ Same-solid only: reparent/group never moves a brush out of its solid model root.
 
 ## Core tools
 
-| Tool                                                              | Purpose                                                    |
-| ----------------------------------------------------------------- | ---------------------------------------------------------- |
-| `get_editor_context`                                              | Snap, history, selection, coords                           |
-| `calculate`                                                       | Safe arithmetic (`20+(0.5*12)`), no eval                   |
-| `list_solid_models` / `get_solid_model` / `get_brush`             | Inventory (+ hierarchy on model detail)                    |
-| `get_scene_hierarchy` / `get_csg_group` / `get_selection`         | Tree, group detail, brush+group selection                  |
-| `find_brushes` / `describe_brush` / `half_extents`                | Filter; summaries; half-size + face centers                |
-| `query_overlaps` / `query_point` / `query_neighbors` / `measure`  | Spatial planning                                           |
-| `preview_transform` / `preview_new_box`                           | Dry-run existing or new box bounds                         |
-| `explain_csg_at_point` / `query_void_connectivity`                | CSG solid/void; approx cavity path                         |
-| `validate_brush` / `validate_solid_model`                         | Topology checks                                            |
-| `create_solid_model` / `add_box_brush` / `add_box_brushes`        | Create geometry (`parentGroupId` supported)                |
-| `create_csg_group` / `set_group_operation` / `ungroup_csg_groups` | Hierarchy compounds                                        |
-| `reparent_solid_nodes` / `rename_group`                           | Nest / rename groups and brushes                           |
-| `place_wall` / `add_room_shell` / `cut_opening` / `add_opening`   | Walls, rooms, door/window cuts                             |
-| `set_brush_transform` / `batch_set_brush_transform`               | Pose edits (`snap:false` for exact)                        |
-| `align_brush`                                                     | Stack on top / hang under / touch side                     |
-| `rotate_brush`                                                    | Rotate in **degrees** (default Y/yaw)                      |
-| `rename_brush`                                                    | Stable names (`start_a_flag`, …)                           |
-| `clip_brush` / `split_brush`                                      | Plane cut / split into two                                 |
-| `delete_brushes` / `duplicate_brushes` / `mirror_brushes`         | Delete/mirror: brushes only; duplicate supports `groupIds` |
-| `reorder_brushes` / `reorder_brush_relative`                      | Sibling order (ends or before/after)                       |
-| `set_inverted_world` / `select` / `undo` / `redo`                 | Session                                                    |
+| Tool                                                               | Purpose                                                    |
+| ------------------------------------------------------------------ | ---------------------------------------------------------- |
+| `get_editor_context`                                               | Snap, history, selection, coords                           |
+| `calculate`                                                        | Safe arithmetic (`20+(0.5*12)`), no eval                   |
+| `list_solid_models` / `get_solid_model` / `get_brush`              | Inventory (+ hierarchy on model detail)                    |
+| `get_scene_hierarchy` / `get_csg_group` / `get_selection`          | Tree, group detail, brush+group selection                  |
+| `find_brushes` / `describe_brush` / `half_extents`                 | Filter; summaries; half-size + face centers                |
+| `query_overlaps` / `query_point` / `query_neighbors` / `measure`   | Spatial planning                                           |
+| `preview_transform` / `preview_new_box`                            | Dry-run existing or new box bounds                         |
+| `explain_csg_at_point` / `query_void_connectivity`                 | CSG solid/void; approx cavity path                         |
+| `validate_brush` / `validate_solid_model`                          | Topology checks                                            |
+| `list_grey_boxes` / `get_grey_box` / `get_grey_box_graph`          | Read the grey box layout brief                             |
+| `create_grey_box` / `rename_grey_box` / `set_grey_box_description` | Author planning volumes                                    |
+| `set_grey_box_transform` / `delete_grey_boxes`                     | Move, resize, remove volumes                               |
+| `connect_grey_boxes` / `disconnect_grey_boxes`                     | State or mute routes between volumes                       |
+| `create_solid_model` / `add_box_brush` / `add_box_brushes`         | Create geometry (`parentGroupId` supported)                |
+| `create_csg_group` / `set_group_operation` / `ungroup_csg_groups`  | Hierarchy compounds                                        |
+| `reparent_solid_nodes` / `rename_group`                            | Nest / rename groups and brushes                           |
+| `place_wall` / `add_room_shell` / `cut_opening` / `add_opening`    | Walls, rooms, door/window cuts                             |
+| `set_brush_transform` / `batch_set_brush_transform`                | Pose edits (`snap:false` for exact)                        |
+| `align_brush`                                                      | Stack on top / hang under / touch side                     |
+| `rotate_brush`                                                     | Rotate in **degrees** (default Y/yaw)                      |
+| `rename_brush`                                                     | Stable names (`start_a_flag`, …)                           |
+| `clip_brush` / `split_brush`                                       | Plane cut / split into two                                 |
+| `delete_brushes` / `duplicate_brushes` / `mirror_brushes`          | Delete/mirror: brushes only; duplicate supports `groupIds` |
+| `reorder_brushes` / `reorder_brush_relative`                       | Sibling order (ends or before/after)                       |
+| `set_inverted_world` / `select` / `undo` / `redo`                  | Session                                                    |
 
 ### AI level-building tips
 
@@ -161,6 +165,42 @@ Same-solid only: reparent/group never moves a brush out of its solid model root.
 
 Solid mutations (including hierarchy create/reparent/rename/ungroup) are **undoable** via `undo` / `redo` and the editor history.
 
+## Grey boxes: read the layout, then populate it
+
+A **grey box** is a named, described box volume the user places to mark out where
+a space goes and what it is for. Grey boxes are **planning volumes, not
+geometry**: they never compile into a solid result and never export. They exist
+so a level's design intent can be read and built against.
+
+The workflow this enables:
+
+1. `get_grey_box_graph` — one call returns every volume (id, name, description,
+   center, size) plus how they connect: edges marked `derived` (the volumes share
+   a face, with the shared opening's width, height, and area) or `authored` (the
+   user stated a route such as an elevator or a one-way drop, with a label, note,
+   and direction). Muted adjacencies and unresolved authored links come back
+   separately so nothing is silently dropped.
+2. Read each volume's **description**. That prose is the brief — role, mood,
+   constraints. Build to it.
+3. `get_grey_box` before building in a volume. Its `occupancy` field reports the
+   solid models and brush count already inside, so you can tell an untouched
+   volume from one you have already filled.
+4. Author the geometry with the ordinary solid tools (`create_solid_model`,
+   `add_room_shell`, `add_box_brush`, `cut_opening`, …), placing brushes inside
+   the grey box bounds. Size doorways against the reported shared-face rect so
+   spaces line up where the layout says they connect.
+
+Notes:
+
+- Derived connectivity is computed from real volume orientation, so rotated grey
+  boxes work. Volumes meeting only at an edge or corner are **not** connected.
+- Every grey box write tool is undoable through `undo`.
+- `get_editor_context` reports `greyBoxCount`, and `get_scene_hierarchy` lists
+  grey box nodes.
+- Creating a grey box yourself is legitimate when the user asks you to block out
+  a layout, but the usual direction is the other way: the user blocks out, you
+  build.
+
 ## Not in this build
 
 - **`capture_viewport` / `capture_section`** — need WebGL readback + image transport outside the AI folder.
@@ -171,5 +211,6 @@ Solid mutations (including hierarchy create/reparent/rename/ungroup) are **undoa
 
 - **Bun process** (`src/ai/server/`): hand-rolled Streamable HTTP + JSON-RPC
 - **Webview** (`src/ai/client/`): `EditorApi` facade over existing solid commands
+- Tool catalog lives in `src/ai/server/tool_definitions/`, one file per domain
 - Bridge: Electrobun RPC (`startMcpServer` / `invokeEditorTool`)
 - UI: main toolbar **MCP** button → simple dialog with Start / URL / Copy

@@ -24,6 +24,13 @@ Choose **Add > Brushes > Solid Model** to create brush-based architecture.
 
 Use terrain for broad layout and landscape blocking. Very dense terrain can be harder to edit and export, so begin with modest detail and add complexity only when the shape requires it.
 
+## Create grey box planning volumes
+
+Choose **Add > Layout > Grey Box** to block out where a space goes before building
+it. A grey box is a named, described volume that never becomes geometry and never
+exports; it records design intent and can be read by an AI agent over MCP as the
+brief for what to build inside. See [Grey boxes](grey_boxes.md).
+
 ## Transform modes
 
 Open the Tools palette and choose Object Select to see the four transform choices.
