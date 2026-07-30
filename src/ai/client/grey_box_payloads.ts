@@ -18,7 +18,10 @@ export interface GreyBoxEdgePayload {
   pairKey: string;
   greyBoxIds: [string, string];
   source: 'derived' | 'authored';
-  contact: 'face' | 'interpenetrating' | 'none';
+  /** Every relation this pair holds: adjacent, overlaps, contains. */
+  relations: string[];
+  /** Containment when one volume sits inside the other, else null. */
+  containment: { parentGreyBoxId: string; childGreyBoxId: string; ratio: number } | null;
   sharedFace: { width: number; height: number; area: number; center: { x: number; y: number; z: number } } | null;
   authoredLinks: Array<{
     connectionId: string;
@@ -93,7 +96,14 @@ export function serializeGreyBoxEdge(edge: GreyBoxGraphEdge): GreyBoxEdgePayload
     pairKey: edge.pairKey,
     greyBoxIds: [edge.firstId, edge.secondId],
     source: edge.source,
-    contact: edge.contactKind ?? 'none',
+    relations: [...edge.relations],
+    containment: edge.containment
+      ? {
+          parentGreyBoxId: edge.containment.parentId,
+          childGreyBoxId: edge.containment.childId,
+          ratio: edge.containment.ratio,
+        }
+      : null,
     sharedFace: contact
       ? {
           width: contact.size.x,

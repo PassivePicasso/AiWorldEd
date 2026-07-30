@@ -1,10 +1,13 @@
 import * as THREE from 'three';
+import { GreyBoxContainment } from './grey_box_containment.js';
 
 /**
- * How two volumes meet. Face contact is where a door or corridor mouth can go;
- * interpenetration usually means the designer intended one merged space.
+ * How two volumes relate. A pair can hold more than one of these at once: a
+ * bridge can be contained by a ravine and share a face with the ledge at each
+ * end. Blockout work nests and intersects volumes freely, so none of these is
+ * an anomaly.
  */
-export type GreyBoxContactKind = 'face' | 'interpenetrating';
+export type GreyBoxRelationKind = 'adjacent' | 'overlaps' | 'contains';
 
 /** One shared face region between two volumes. */
 export interface GreyBoxFaceContact {
@@ -25,10 +28,10 @@ export interface GreyBoxFaceContact {
 }
 
 /**
- * A connection between two volumes computed from geometry alone. Authored links
- * and suppressions are applied on top of these by the merge step.
+ * Everything geometry says about one pair of volumes. Authored links and mutes
+ * are applied on top of these by the merge step.
  */
-export interface GreyBoxDerivedConnection {
+export interface GreyBoxDerivedRelation {
   /** Canonical order-independent key for the pair. */
   pairKey: string;
 
@@ -38,71 +41,78 @@ export interface GreyBoxDerivedConnection {
   /** Id of the volume sorted second in the pair key. */
   secondId: string;
 
-  /** How the two volumes meet. */
-  kind: GreyBoxContactKind;
-
-  /** Shared face regions, ordered largest area first. Empty when overlapping. */
+  /**
+   * Shared face regions, largest area first. Empty when the volumes do not meet
+   * face to face, which is independent of whether they nest or overlap.
+   */
   contacts: GreyBoxFaceContact[];
 
-  /** Sum of shared face areas. Zero for interpenetrating pairs. */
+  /** Sum of shared face areas; zero when there is no face contact. */
   totalContactArea: number;
 
   /**
-   * Axis-aligned intersection of the two world bounds for interpenetrating
-   * pairs, or null for face contacts. Approximate for rotated volumes.
+   * Axis-aligned intersection of the two world bounds when the volumes overlap
+   * without one containing the other, else null. Approximate for rotated
+   * volumes.
    */
   overlapBounds: THREE.Box3 | null;
+
+  /** Containment when one volume sits inside the other, else null. */
+  containment: GreyBoxContainment | null;
 }
 
 /**
- * Builds a face-contact connection record.
+ * Builds a relation record for a pair, ordering face contacts largest first.
  *
  * @param pairKey Canonical pair key.
  * @param firstId Id sorted first in the pair key.
  * @param secondId Id sorted second in the pair key.
- * @param contacts Shared face regions.
- * @returns Derived connection describing the contact.
+ * @param contacts Shared face regions, in any order.
+ * @param overlapBounds Overlap region, or null.
+ * @param containment Containment record, or null.
+ * @returns Derived relation for the pair.
  */
-export function createFaceContactConnection(
+export function createDerivedRelation(
   pairKey: string,
   firstId: string,
   secondId: string,
   contacts: GreyBoxFaceContact[],
-): GreyBoxDerivedConnection {
+  overlapBounds: THREE.Box3 | null,
+  containment: GreyBoxContainment | null,
+): GreyBoxDerivedRelation {
   const ordered = [...contacts].sort((left, right) => right.area - left.area);
   return {
     pairKey,
     firstId,
     secondId,
-    kind: 'face',
     contacts: ordered,
     totalContactArea: ordered.reduce((sum, contact) => sum + contact.area, 0),
-    overlapBounds: null,
+    overlapBounds,
+    containment,
   };
 }
 
 /**
- * Builds an interpenetration connection record.
+ * Returns whether a relation record says anything at all, so pairs that merely
+ * pass the broad phase are dropped.
  *
- * @param pairKey Canonical pair key.
- * @param firstId Id sorted first in the pair key.
- * @param secondId Id sorted second in the pair key.
- * @param overlapBounds Axis-aligned overlap region.
- * @returns Derived connection describing the overlap.
+ * @param relation Relation record.
+ * @returns True when at least one relation holds.
  */
-export function createInterpenetratingConnection(
-  pairKey: string,
-  firstId: string,
-  secondId: string,
-  overlapBounds: THREE.Box3,
-): GreyBoxDerivedConnection {
-  return {
-    pairKey,
-    firstId,
-    secondId,
-    kind: 'interpenetrating',
-    contacts: [],
-    totalContactArea: 0,
-    overlapBounds,
-  };
+export function hasAnyRelation(relation: GreyBoxDerivedRelation): boolean {
+  return relation.contacts.length > 0 || relation.overlapBounds !== null || relation.containment !== null;
+}
+
+/**
+ * Lists the relation kinds a record holds, for reporting and display.
+ *
+ * @param relation Relation record.
+ * @returns Relation kinds, in a stable order.
+ */
+export function relationKinds(relation: GreyBoxDerivedRelation): GreyBoxRelationKind[] {
+  const kinds: GreyBoxRelationKind[] = [];
+  if (relation.containment) kinds.push('contains');
+  if (relation.contacts.length > 0) kinds.push('adjacent');
+  if (relation.overlapBounds) kinds.push('overlaps');
+  return kinds;
 }

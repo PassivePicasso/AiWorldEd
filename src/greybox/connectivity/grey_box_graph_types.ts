@@ -1,6 +1,8 @@
 import * as THREE from 'three';
 import { GreyBoxConnectionDirection } from '../model/grey_box_connection.js';
-import { GreyBoxContactKind, GreyBoxFaceContact } from './grey_box_derived_connection.js';
+import { GreyBoxFaceContact, GreyBoxRelationKind } from './grey_box_derived_connection.js';
+import type { GreyBoxContainment } from './grey_box_containment.js';
+import type { GreyBoxContainmentTree } from './grey_box_containment_tree.js';
 
 /** One grey box volume as a graph node. */
 export interface GreyBoxGraphNode {
@@ -18,6 +20,15 @@ export interface GreyBoxGraphNode {
 
   /** World size of the volume along its own axes. */
   size: THREE.Vector3;
+
+  /** Id of the volume this one sits inside, or null when it is a root. */
+  parentId: string | null;
+
+  /** Nesting depth, zero for a root. */
+  depth: number;
+
+  /** Whether the parent was stated by Outliner parenting rather than derived. */
+  authoredParent: boolean;
 }
 
 /** An authored link as it appears on a merged edge. */
@@ -59,8 +70,14 @@ export interface GreyBoxGraphEdge {
   /** Whether geometry implies this edge or the user stated it. */
   source: 'derived' | 'authored';
 
-  /** How the volumes meet, or null for an authored edge with no contact. */
-  contactKind: GreyBoxContactKind | null;
+  /**
+   * Every relation this pair holds. Empty for an authored edge between volumes
+   * that geometry says nothing about.
+   */
+  relations: GreyBoxRelationKind[];
+
+  /** Containment when one volume sits inside the other, else null. */
+  containment: GreyBoxContainment | null;
 
   /** Shared face regions when the edge comes from geometry. */
   contacts: GreyBoxFaceContact[];
@@ -97,6 +114,9 @@ export interface GreyBoxMergedGraph {
 
   /** Edges in stable pair-key order. */
   edges: GreyBoxGraphEdge[];
+
+  /** The containment hierarchy the volumes form. */
+  tree: GreyBoxContainmentTree;
 
   /** Derived adjacencies the user muted, in stable order. */
   suppressedPairKeys: string[];

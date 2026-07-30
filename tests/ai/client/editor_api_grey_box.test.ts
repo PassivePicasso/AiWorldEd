@@ -78,7 +78,8 @@ describe('EditorApi grey box tools', () => {
     world.add(model.root);
     const after = payload(api.invokeTool('get_grey_box', { greyBoxId }))['occupancy'] as Record<string, unknown>;
     expect(after['empty']).toBe(false);
-    expect(after['brushCount']).toBe(1);
+    expect(after['ownBrushCount']).toBe(1);
+    expect(after['subtreeBrushCount']).toBe(1);
   });
 
   it('returns the whole graph with derived edges', () => {
@@ -88,7 +89,7 @@ describe('EditorApi grey box tools', () => {
     const edges = data['edges'] as Array<Record<string, unknown>>;
     expect(edges.length).toBe(1);
     expect(edges[0]!['source']).toBe('derived');
-    expect(edges[0]!['contact']).toBe('face');
+    expect(edges[0]!['relations']).toContain('adjacent');
     expect((edges[0]!['sharedFace'] as Record<string, number>)['area']).toBeCloseTo(100);
   });
 

@@ -62,8 +62,8 @@ function edgeRows(edge: GreyBoxGraphEdge, ownerId: string, names: Map<string, st
       connectionId: null,
       authoredOwnerId: null,
       suppressed: false,
-      label: `${neighbourName} — ${describeContact(edge)}`,
-      detail: `Derived from geometry: ${describeContact(edge)}`,
+      label: `${neighbourName} — ${describeContact(edge, ownerId)}`,
+      detail: `Derived from geometry: ${describeContact(edge, ownerId)}`,
     });
   }
   for (const link of edge.authoredLinks) {
@@ -123,16 +123,24 @@ function otherId(edge: GreyBoxGraphEdge, ownerId: string): string {
 }
 
 /**
- * Describes how two volumes meet in one short phrase.
+ * Describes how two volumes relate in one short phrase, from the perspective of
+ * the selected volume so nesting reads the right way round.
  *
  * @param edge Graph edge.
- * @returns Human-readable contact summary.
+ * @param ownerId Id of the selected volume.
+ * @returns Human-readable relation summary.
  */
-function describeContact(edge: GreyBoxGraphEdge): string {
-  if (edge.contactKind === 'interpenetrating') return 'overlapping';
-  if (edge.contacts.length === 0) return 'connected';
-  const contact = edge.contacts[0]!;
-  return `shared face ${formatSize(contact.size.x)} x ${formatSize(contact.size.y)}`;
+function describeContact(edge: GreyBoxGraphEdge, ownerId: string): string {
+  const parts: string[] = [];
+  if (edge.containment) {
+    parts.push(edge.containment.parentId === ownerId ? 'holds it' : 'inside it');
+  }
+  if (edge.contacts.length > 0) {
+    const contact = edge.contacts[0]!;
+    parts.push(`shared face ${formatSize(contact.size.x)} x ${formatSize(contact.size.y)}`);
+  }
+  if (edge.overlapBounds) parts.push('overlapping');
+  return parts.length > 0 ? parts.join(', ') : 'connected';
 }
 
 /**

@@ -1,8 +1,15 @@
 import * as THREE from 'three';
 import { GreyBoxData } from '../model/grey_box_data.js';
 import { greyBoxPairKey } from '../model/grey_box_pair_key.js';
-import { GreyBoxDerivedConnection } from './grey_box_derived_connection.js';
+import { GreyBoxDerivedRelation, relationKinds } from './grey_box_derived_connection.js';
 import { GreyBoxOrientedVolume } from './grey_box_oriented_volume.js';
+import { greyBoxVolumeSize } from './grey_box_containment.js';
+import {
+  GreyBoxContainmentTree,
+  GreyBoxParentClaims,
+  buildGreyBoxContainmentTree,
+  pickDerivedParent,
+} from './grey_box_containment_tree.js';
 import {
   GreyBoxAuthoredLink,
   GreyBoxGraphEdge,
@@ -15,41 +22,78 @@ import {
 export interface GreyBoxGraphInput {
   volume: GreyBoxOrientedVolume;
   data: GreyBoxData;
+  /** Grey box id of the nearest grey box ancestor in the scene, or null. */
+  authoredParentId: string | null;
 }
 
 /**
- * Merges geometry-derived adjacency with the user's authored links: derived
- * edges minus muted pairs, plus authored links. An authored link that
- * duplicates a derived adjacency annotates that edge instead of producing a
- * second one.
+ * Merges geometry-derived relations with the user's authored links and
+ * parenting: derived edges minus muted pairs, plus authored links, over a
+ * containment hierarchy. An authored link that duplicates a derived relation
+ * annotates that edge instead of producing a second one.
  *
- * @param inputs Volumes with their layout payloads.
- * @param derived Connections computed from geometry.
- * @returns Merged graph with nodes, edges, muted keys, and any problems.
+ * @param inputs Volumes with their layout payloads and authored parents.
+ * @param derived Relations computed from geometry.
+ * @returns Merged graph with nodes, edges, hierarchy, muted keys, and problems.
  */
-export function mergeGreyBoxGraph(
-  inputs: GreyBoxGraphInput[],
-  derived: GreyBoxDerivedConnection[],
-): GreyBoxMergedGraph {
+export function mergeGreyBoxGraph(inputs: GreyBoxGraphInput[], derived: GreyBoxDerivedRelation[]): GreyBoxMergedGraph {
   const suppressedKeys = collectSuppressedKeys(inputs);
   const edges = new Map<string, GreyBoxGraphEdge>();
-  for (const connection of derived) {
-    if (suppressedKeys.has(connection.pairKey)) continue;
-    edges.set(connection.pairKey, derivedEdge(connection));
+  for (const relation of derived) {
+    if (suppressedKeys.has(relation.pairKey)) continue;
+    edges.set(relation.pairKey, derivedEdge(relation));
   }
   const problems: GreyBoxGraphProblem[] = [];
   applyAuthoredLinks(inputs, edges, problems);
+  const tree = buildTree(inputs, derived);
+  reportBrokenCycles(tree, problems);
   return {
-    nodes: inputs.map((input) => buildNode(input)),
+    nodes: inputs.map((input) => buildNode(input, tree)),
     edges: [...edges.values()].sort((left, right) => left.pairKey.localeCompare(right.pairKey)),
+    tree,
     suppressedPairKeys: [...suppressedKeys].sort(),
     problems,
   };
 }
 
 /**
- * Collects every muted pair key across all volumes. Either endpoint muting an
- * adjacency is enough to drop it.
+ * Builds the containment hierarchy from geometry plus authored parenting.
+ *
+ * @param inputs Volumes with their authored parents.
+ * @param derived Relations carrying containment records.
+ * @returns Containment tree.
+ */
+function buildTree(inputs: GreyBoxGraphInput[], derived: GreyBoxDerivedRelation[]): GreyBoxContainmentTree {
+  const sizeById = new Map(inputs.map((input) => [input.data.id, greyBoxVolumeSize(input.volume)]));
+  const containments = derived.map((relation) => relation.containment).filter((entry) => entry !== null);
+  const claims: GreyBoxParentClaims[] = inputs.map((input) => ({
+    id: input.data.id,
+    authoredParentId: input.authoredParentId,
+    derivedParentId: pickDerivedParent(input.data.id, containments, sizeById),
+  }));
+  return buildGreyBoxContainmentTree(claims);
+}
+
+/**
+ * Reports parent links dropped to break a cycle, so a bad hierarchy is visible.
+ *
+ * @param tree Containment tree.
+ * @param problems Problem accumulator.
+ */
+function reportBrokenCycles(tree: GreyBoxContainmentTree, problems: GreyBoxGraphProblem[]): void {
+  for (const broken of tree.brokenCycles) {
+    problems.push({
+      connectionId: `containment:${broken.childId}`,
+      ownerId: broken.childId,
+      targetId: broken.parentId,
+      message: 'containment would form a cycle, so the parent link was dropped',
+    });
+  }
+}
+
+/**
+ * Collects every muted pair key across all volumes. Either endpoint muting a
+ * relation is enough to drop it.
  *
  * @param inputs Volumes with their payloads.
  * @returns Set of muted pair keys.
@@ -65,21 +109,22 @@ function collectSuppressedKeys(inputs: GreyBoxGraphInput[]): Set<string> {
 }
 
 /**
- * Converts a derived connection into a merged edge.
+ * Converts a derived relation into a merged edge.
  *
- * @param connection Derived connection.
+ * @param relation Derived relation.
  * @returns Edge marked as coming from geometry.
  */
-function derivedEdge(connection: GreyBoxDerivedConnection): GreyBoxGraphEdge {
+function derivedEdge(relation: GreyBoxDerivedRelation): GreyBoxGraphEdge {
   return {
-    pairKey: connection.pairKey,
-    firstId: connection.firstId,
-    secondId: connection.secondId,
+    pairKey: relation.pairKey,
+    firstId: relation.firstId,
+    secondId: relation.secondId,
     source: 'derived',
-    contactKind: connection.kind,
-    contacts: connection.contacts,
-    totalContactArea: connection.totalContactArea,
-    overlapBounds: connection.overlapBounds,
+    relations: relationKinds(relation),
+    containment: relation.containment,
+    contacts: relation.contacts,
+    totalContactArea: relation.totalContactArea,
+    overlapBounds: relation.overlapBounds,
     authoredLinks: [],
   };
 }
@@ -158,7 +203,7 @@ function linkIdentity(link: GreyBoxAuthoredLink): Omit<GreyBoxGraphProblem, 'mes
 
 /**
  * Annotates an existing edge with an authored link, or creates an authored edge
- * when the pair has no surviving derived adjacency.
+ * when the pair has no surviving derived relation.
  *
  * @param link Authored link to place.
  * @param edges Edge accumulator keyed by pair key.
@@ -176,7 +221,8 @@ function attachAuthoredLink(link: GreyBoxAuthoredLink, edges: Map<string, GreyBo
     firstId: firstId!,
     secondId: secondId!,
     source: 'authored',
-    contactKind: null,
+    relations: [],
+    containment: null,
     contacts: [],
     totalContactArea: 0,
     overlapBounds: null,
@@ -185,12 +231,15 @@ function attachAuthoredLink(link: GreyBoxAuthoredLink, edges: Map<string, GreyBo
 }
 
 /**
- * Builds a graph node from a volume and its payload.
+ * Builds a graph node from a volume, its payload, and its place in the
+ * hierarchy.
  *
  * @param input Volume with its payload.
+ * @param tree Containment tree.
  * @returns Node describing the volume.
  */
-function buildNode(input: GreyBoxGraphInput): GreyBoxGraphNode {
+function buildNode(input: GreyBoxGraphInput, tree: GreyBoxContainmentTree): GreyBoxGraphNode {
+  const node = tree.nodes.get(input.data.id);
   return {
     id: input.data.id,
     name: input.volume.name,
@@ -201,5 +250,8 @@ function buildNode(input: GreyBoxGraphInput): GreyBoxGraphNode {
       input.volume.halfExtents.y * 2,
       input.volume.halfExtents.z * 2,
     ),
+    parentId: node?.parentId ?? null,
+    depth: node?.depth ?? 0,
+    authoredParent: node?.authoredParent ?? false,
   };
 }

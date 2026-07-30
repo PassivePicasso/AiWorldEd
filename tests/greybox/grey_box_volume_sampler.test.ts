@@ -4,7 +4,7 @@ import {
   sampleGreyBoxVolume,
   sampleGreyBoxVolumesUnder,
 } from '../../src/greybox/connectivity/grey_box_volume_sampler.js';
-import { deriveGreyBoxConnections } from '../../src/greybox/connectivity/grey_box_derived_graph.js';
+import { deriveGreyBoxRelations } from '../../src/greybox/connectivity/grey_box_derived_graph.js';
 import { greyBoxVolumeWorldBounds } from '../../src/greybox/connectivity/grey_box_oriented_volume.js';
 import { getGreyBoxId } from '../../src/greybox/model/grey_box_access.js';
 import { createGreyBoxMesh } from '../../src/greybox/model/grey_box_factory.js';
@@ -70,7 +70,7 @@ describe('sampleGreyBoxVolume', () => {
     right.position.set(10, 0, 0);
     world.add(left);
     world.add(right);
-    const connections = deriveGreyBoxConnections(sampleGreyBoxVolumesUnder(world));
+    const connections = deriveGreyBoxRelations(sampleGreyBoxVolumesUnder(world));
     expect(connections.length).toBe(1);
     expect(connections[0]!.pairKey).toBe(greyBoxPairKey(getGreyBoxId(left), getGreyBoxId(right)));
     expect(connections[0]!.contacts[0]!.area).toBeCloseTo(100);
@@ -82,9 +82,9 @@ describe('sampleGreyBoxVolume', () => {
     second.position.set(30, 0, 0);
     world.add(first);
     world.add(second);
-    expect(deriveGreyBoxConnections(sampleGreyBoxVolumesUnder(world))).toEqual([]);
+    expect(deriveGreyBoxRelations(sampleGreyBoxVolumesUnder(world))).toEqual([]);
     second.position.set(10, 0, 0);
-    expect(deriveGreyBoxConnections(sampleGreyBoxVolumesUnder(world)).length).toBe(1);
+    expect(deriveGreyBoxRelations(sampleGreyBoxVolumesUnder(world)).length).toBe(1);
   });
 
   it('returns an empty list for a scene with no grey boxes', () => {

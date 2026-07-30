@@ -43,7 +43,7 @@ describe('merged grey box graph', () => {
     const graph = buildGreyBoxSceneGraph(world);
     expect(graph.edges.length).toBe(1);
     expect(graph.edges[0]!.source).toBe('derived');
-    expect(graph.edges[0]!.contactKind).toBe('face');
+    expect(graph.edges[0]!.relations).toContain('adjacent');
     expect(graph.edges[0]!.authoredLinks).toEqual([]);
   });
 
@@ -73,7 +73,7 @@ describe('merged grey box graph', () => {
     const graph = buildGreyBoxSceneGraph(world);
     const authored = graph.edges.find((edge) => edge.source === 'authored')!;
     expect(authored.pairKey).toBe(greyBoxPairKey(getGreyBoxId(left), getGreyBoxId(detached)));
-    expect(authored.contactKind).toBeNull();
+    expect(authored.relations).toEqual([]);
     expect(authored.authoredLinks[0]!.kind).toBe('elevator');
     expect(authored.authoredLinks[0]!.note).toBe('needs keycard');
   });

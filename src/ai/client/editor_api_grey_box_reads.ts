@@ -5,7 +5,7 @@ import { GreyBoxRegistry } from '../../greybox/model/grey_box_registry.js';
 import { buildGreyBoxSceneGraph } from '../../greybox/connectivity/grey_box_scene_graph.js';
 import { computeGreyBoxWorldBounds, computeGreyBoxWorldSize } from '../../greybox/model/grey_box_volume.js';
 import { serializeGreyBoxGraph, serializeGreyBoxNode } from './grey_box_payloads.js';
-import { collectGreyBoxOccupancy } from './grey_box_occupancy.js';
+import { computeGreyBoxOccupancy, readGreyBoxOccupancy } from './grey_box_occupancy.js';
 
 /**
  * Grey box read tools: the layout an agent builds against. Reads never mutate
@@ -53,12 +53,12 @@ export class EditorApiGreyBoxReads {
     const graph = buildGreyBoxSceneGraph(this.host.worldObject);
     const node = graph.nodes.find((candidate) => candidate.id === greyBoxId);
     if (!node) return { ok: false, message: `Unknown greyBoxId: ${greyBoxId}` };
-    const occupancy = collectGreyBoxOccupancy(this.host.worldObject, mesh);
+    const occupancy = readGreyBoxOccupancy(computeGreyBoxOccupancy(this.host.worldObject, graph), greyBoxId);
     return {
       ok: true,
       message: occupancy.empty
         ? `Grey box "${node.name}" is empty and ready to build in`
-        : `Grey box "${node.name}" already holds ${occupancy.brushCount} brush(es)`,
+        : `Grey box "${node.name}" already holds ${occupancy.subtreeBrushCount} brush(es) in its subtree`,
       data: {
         greyBox: serializeGreyBoxNode(node),
         bounds: boundsPayload(computeGreyBoxWorldBounds(mesh)),
