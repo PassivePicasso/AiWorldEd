@@ -11,6 +11,7 @@ import { filterUnlockedObjects } from '../../utils/object_lock.js';
 import { SolidBrushVisual } from '../../solid/model/solid_brush_visual.js';
 import { SolidBrushPropertyHandlers } from './properties_solid_brush_section.js';
 import { PropertiesContextSections } from './properties_context_sections.js';
+import { PropertiesMaterialSection } from './properties_material_section.js';
 import type { GreyBoxDescriptionCommitter } from './properties_grey_box_section.js';
 import type { GreyBoxConnectionHandlers } from './properties_grey_box_connections_section.js';
 import type { GreyBoxMergedGraph } from '../../greybox/connectivity/grey_box_graph_types.js';
@@ -44,7 +45,7 @@ export class PropertiesPanel {
   private positionInputs: Map<string, HTMLInputElement>;
   private rotationInputs: Map<string, HTMLInputElement>;
   private scaleInputs: Map<string, HTMLInputElement>;
-  private colorInput: HTMLInputElement | null;
+  private materialSection: PropertiesMaterialSection;
   private commandStack: CommandStack | null;
   private textureLock: TextureLockSettings | null;
   private isDisposed: boolean;
@@ -76,13 +77,19 @@ export class PropertiesPanel {
     this.positionInputs = new Map();
     this.rotationInputs = new Map();
     this.scaleInputs = new Map();
-    this.colorInput = null;
     this.commandStack = null;
     this.textureLock = null;
     this.isDisposed = false;
     this.sections = [];
     this.inputChangeHandlers = [];
     this.colorSession = new PropertiesColorSession();
+    this.materialSection = new PropertiesMaterialSection(
+      this.theme,
+      () => this.createSectionContainer(),
+      (title) => this.createSectionHeader(title),
+      this.colorSession,
+    );
+    this.materialSection.setEditableObjectProvider(() => this.getEditableBoundObjects());
     this.afterTransformCommit = null;
     this.beforeSelectionUpdate = null;
     this.contextSections = new PropertiesContextSections(
@@ -100,7 +107,7 @@ export class PropertiesPanel {
     this.createPositionSection();
     this.createRotationSection();
     this.createScaleSection();
-    this.createMaterialSection();
+    this.mountMaterialSection();
     this.mountContextSections();
     container.appendChild(this.container);
     this.bindSelectionChanges();
@@ -257,7 +264,7 @@ export class PropertiesPanel {
       objects.map((object) => object.scale),
       2,
     );
-    this.updateColorFromObjects(objects);
+    this.materialSection.updateFromObjects(objects);
     this.contextSections.updateFromObjects(objects);
   }
 
@@ -622,159 +629,16 @@ export class PropertiesPanel {
     return '#' + hex.toString(16).padStart(6, '0');
   }
 
-  /** Creates the Material color section for mesh color editing. */
-  private createMaterialSection(): void {
-    const section = this.createSectionContainer();
-    section.appendChild(this.createSectionHeader('Material'));
-    const content = document.createElement('div');
-    content.style.padding = '6px 8px';
-    content.appendChild(this.createColorPickerRow());
-    section.appendChild(content);
-    this.sections.push(section);
-    this.container.appendChild(section);
+  /** Mounts the Material section into the panel. */
+  private mountMaterialSection(): void {
+    const element = this.materialSection.getElement();
+    this.sections.push(element);
+    this.container.appendChild(element);
   }
 
   /** Mounts the type-specific inspector sections into the panel. */
   private mountContextSections(): void {
     this.contextSections.mountInto(this.container, (section) => this.sections.push(section));
-  }
-
-  /**
-   * Builds the color label and picker row for the material section.
-   *
-   * @returns Row element containing the color control.
-   */
-  private createColorPickerRow(): HTMLElement {
-    const row = document.createElement('div');
-    row.style.display = 'flex';
-    row.style.alignItems = 'center';
-    row.style.gap = '8px';
-    row.appendChild(this.createColorLabel());
-    this.colorInput = this.createColorInput();
-    row.appendChild(this.colorInput);
-    return row;
-  }
-
-  /**
-   * Creates the "Color" label for the material section.
-   *
-   * @returns Styled label element.
-   */
-  private createColorLabel(): HTMLElement {
-    const label = document.createElement('span');
-    label.textContent = 'Color';
-    label.style.color = this.theme.buttonTextColor;
-    label.style.fontFamily = 'monospace';
-    label.style.fontSize = '12px';
-    return label;
-  }
-
-  /**
-   * Creates the color input and binds edit/finalize listeners.
-   *
-   * @returns Configured color input element.
-   */
-  private createColorInput(): HTMLInputElement {
-    const colorInput = document.createElement('input');
-    colorInput.type = 'color';
-    colorInput.value = '#ffffff';
-    colorInput.style.width = '48px';
-    colorInput.style.height = '24px';
-    colorInput.style.border = 'none';
-    colorInput.style.background = 'transparent';
-    colorInput.style.cursor = 'pointer';
-    colorInput.addEventListener('input', () => this.onColorPickerValueEdited());
-    colorInput.addEventListener('change', () => this.onColorPickerValueEdited());
-    colorInput.addEventListener('blur', () => this.colorSession.finalize());
-    return colorInput;
-  }
-
-  /**
-   * Updates the color picker from selected mesh materials.
-   *
-   * @param objects Selected objects.
-   */
-  private updateColorFromObjects(objects: THREE.Object3D[]): void {
-    if (!this.colorInput) return;
-    const colors = this.collectMeshColors(objects);
-    if (colors.length === 0) {
-      this.colorInput.value = '#ffffff';
-      this.colorInput.style.opacity = '1';
-      return;
-    }
-    if (this.areColorsShared(colors)) {
-      this.colorInput.value = `#${colors[0]!.toString(16).padStart(6, '0')}`;
-      this.colorInput.style.opacity = '1';
-      return;
-    }
-    this.colorInput.value = '#ffffff';
-    this.colorInput.style.opacity = '0.55';
-  }
-
-  /**
-   * Collects material color hex values from mesh objects.
-   *
-   * @param objects Selected objects.
-   * @returns Color hex list.
-   */
-  private collectMeshColors(objects: THREE.Object3D[]): number[] {
-    const colors: number[] = [];
-    objects.forEach((object) => {
-      if (!(object instanceof THREE.Mesh)) return;
-      const material = object.material;
-      if (!material || Array.isArray(material) || !('color' in material)) return;
-      colors.push((material as THREE.MeshStandardMaterial).color.getHex());
-    });
-    return colors;
-  }
-
-  /**
-   * Returns whether all colors are identical.
-   *
-   * @param colors Hex colors.
-   * @returns True when shared.
-   */
-  private areColorsShared(colors: number[]): boolean {
-    if (colors.length === 0) return true;
-    return colors.every((color) => color === colors[0]);
-  }
-
-  /** Applies a color picker value with a single coalesced undo command. */
-  private onColorPickerValueEdited(): void {
-    if (!this.colorInput || this.boundObjects.length === 0) return;
-    const colorHex = this.parseColorInputHex(this.colorInput.value);
-    if (colorHex === null) return;
-    this.colorSession.onColorEdited(colorHex, this.collectColorEditableMeshes(this.getEditableBoundObjects()));
-    this.colorInput.style.opacity = '1';
-  }
-
-  /**
-   * Parses a CSS #rrggbb color string into a hex number.
-   *
-   * @param value The color input value (e.g. "#ff0000").
-   * @returns Hex number, or null when invalid.
-   */
-  private parseColorInputHex(value: string): number | null {
-    const trimmed = value.trim();
-    if (!/^#[0-9a-fA-F]{6}$/.test(trimmed)) return null;
-    return parseInt(trimmed.slice(1), 16);
-  }
-
-  /**
-   * Collects bound meshes that expose a writable material color.
-   *
-   * @param objects Selected objects.
-   * @returns Editable meshes.
-   */
-  private collectColorEditableMeshes(objects: THREE.Object3D[]): THREE.Mesh[] {
-    const meshes: THREE.Mesh[] = [];
-    objects.forEach((object) => {
-      if (!(object instanceof THREE.Mesh)) return;
-      const material = object.material;
-      if (!material || Array.isArray(material) || !('color' in material)) return;
-      meshes.push(object);
-    });
-    return meshes;
   }
 
   /**
@@ -987,10 +851,7 @@ export class PropertiesPanel {
     this.scaleInputs.forEach((input) => {
       input.value = '';
     });
-    if (this.colorInput) {
-      this.colorInput.value = '#ffffff';
-      this.colorInput.style.opacity = '1';
-    }
+    this.materialSection.clear();
   }
 
   /**

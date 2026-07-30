@@ -60,7 +60,17 @@ export type McpToolName =
   | 'reorder_brush_relative'
   | 'set_inverted_world'
   | 'select'
-  | 'calculate';
+  | 'calculate'
+  | 'list_grey_boxes'
+  | 'get_grey_box'
+  | 'get_grey_box_graph'
+  | 'create_grey_box'
+  | 'rename_grey_box'
+  | 'set_grey_box_description'
+  | 'set_grey_box_transform'
+  | 'delete_grey_boxes'
+  | 'connect_grey_boxes'
+  | 'disconnect_grey_boxes';
 
 /** JSON vector DTO used at the MCP / EditorApi boundary. */
 export interface McpVec3 {

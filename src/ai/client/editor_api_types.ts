@@ -98,6 +98,8 @@ export interface EditorContextDto {
   undoCount: number;
   redoCount: number;
   solidModelCount: number;
+  /** Number of grey box planning volumes in the scene. */
+  greyBoxCount: number;
   selection: SelectionSummaryDto;
 }
 

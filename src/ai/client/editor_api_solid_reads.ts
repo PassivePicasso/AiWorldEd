@@ -21,6 +21,7 @@ import { SolidBrushVisual } from '../../solid/model/solid_brush_visual.js';
 import { getSolidGroupOperation, isSolidCsgGroup } from '../../solid/model/solid_group.js';
 import type { SolidBrushInstance } from '../../solid/model/solid_brush_instance.js';
 import type { McpDetailLevel, McpToolResult } from '../shared/mcp_protocol_types.js';
+import { GreyBoxRegistry } from '../../greybox/model/grey_box_registry.js';
 
 /** Read-only solid model queries for EditorApi. */
 export class EditorApiSolidReads {
@@ -51,6 +52,7 @@ export class EditorApiSolidReads {
       undoCount: this.host.commandStack.getUndoCount(),
       redoCount: this.host.commandStack.getRedoCount(),
       solidModelCount: listSolidModels(this.host.worldObject).length,
+      greyBoxCount: GreyBoxRegistry.collectUnder(this.host.worldObject).length,
       selection: this.buildSelectionSummary(),
     };
     return okResult('Editor context', data);
@@ -109,7 +111,12 @@ export class EditorApiSolidReads {
    */
   getSceneHierarchy(): McpToolResult {
     const children = listSolidModels(this.host.worldObject).map((model) => this.toSolidModelHierarchyNode(model));
-    return okResult('Scene hierarchy', { children });
+    const greyBoxes = GreyBoxRegistry.collectUnder(this.host.worldObject).map((object) => ({
+      kind: 'grey_box' as const,
+      greyBoxId: GreyBoxRegistry.get(object).id,
+      name: object.name,
+    }));
+    return okResult('Scene hierarchy', { children, greyBoxes });
   }
 
   /**

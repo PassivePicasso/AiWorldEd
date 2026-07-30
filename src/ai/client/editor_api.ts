@@ -4,6 +4,8 @@ import { EditorApiBuilders } from './editor_api_builders.js';
 import { EditorApiCsgQuery } from './editor_api_csg_query.js';
 import { EditorApiFind } from './editor_api_find.js';
 import { EditorApiHierarchy } from './editor_api_hierarchy.js';
+import { EditorApiGreyBoxReads } from './editor_api_grey_box_reads.js';
+import { EditorApiGreyBoxWrites } from './editor_api_grey_box_writes.js';
 import { EditorApiSolidReads } from './editor_api_solid_reads.js';
 import { EditorApiSolidWrites } from './editor_api_solid_writes.js';
 import { EditorApiSpatial } from './editor_api_spatial.js';
@@ -42,6 +44,12 @@ import type {
   SplitBrushArgs,
   UngroupCsgGroupsArgs,
 } from './editor_api_types.js';
+import type {
+  ConnectGreyBoxesArgs,
+  CreateGreyBoxArgs,
+  DisconnectGreyBoxesArgs,
+  SetGreyBoxTransformArgs,
+} from './editor_api_grey_box_types.js';
 import { calculateExpression } from '../shared/mcp_calculate.js';
 import type { McpToolResult } from '../shared/mcp_protocol_types.js';
 
@@ -59,6 +67,8 @@ export class EditorApi {
   private readonly builders: EditorApiBuilders;
   private readonly csgQuery: EditorApiCsgQuery;
   private readonly hierarchy: EditorApiHierarchy;
+  private readonly greyBoxReads: EditorApiGreyBoxReads;
+  private readonly greyBoxWrites: EditorApiGreyBoxWrites;
 
   /**
    * Creates an editor API bound to live editor systems.
@@ -75,6 +85,8 @@ export class EditorApi {
     this.builders = new EditorApiBuilders(host, this.writes);
     this.csgQuery = new EditorApiCsgQuery(host);
     this.hierarchy = new EditorApiHierarchy(host);
+    this.greyBoxReads = new EditorApiGreyBoxReads(host);
+    this.greyBoxWrites = new EditorApiGreyBoxWrites(host);
   }
 
   /**
@@ -206,6 +218,26 @@ export class EditorApi {
         return this.writes.redo();
       case 'calculate':
         return calculateExpression(stringArg(args, 'expression'));
+      case 'list_grey_boxes':
+        return this.greyBoxReads.listGreyBoxes();
+      case 'get_grey_box':
+        return this.greyBoxReads.getGreyBox(stringArg(args, 'greyBoxId'));
+      case 'get_grey_box_graph':
+        return this.greyBoxReads.getGreyBoxGraph();
+      case 'create_grey_box':
+        return this.greyBoxWrites.createGreyBox(args as unknown as CreateGreyBoxArgs);
+      case 'rename_grey_box':
+        return this.greyBoxWrites.renameGreyBox(stringArg(args, 'greyBoxId'), stringArg(args, 'name'));
+      case 'set_grey_box_description':
+        return this.greyBoxWrites.setGreyBoxDescription(stringArg(args, 'greyBoxId'), descriptionArg(args));
+      case 'set_grey_box_transform':
+        return this.greyBoxWrites.setGreyBoxTransform(args as unknown as SetGreyBoxTransformArgs);
+      case 'delete_grey_boxes':
+        return this.greyBoxWrites.deleteGreyBoxes(stringArrayArg(args, 'greyBoxIds'));
+      case 'connect_grey_boxes':
+        return this.greyBoxWrites.connectGreyBoxes(args as unknown as ConnectGreyBoxesArgs);
+      case 'disconnect_grey_boxes':
+        return this.greyBoxWrites.disconnectGreyBoxes(args as unknown as DisconnectGreyBoxesArgs);
       default:
         return { ok: false, message: `Unknown tool: ${name}` };
     }
@@ -291,6 +323,21 @@ function stringArrayArg(args: Record<string, unknown>, key: string): string[] {
   if (typeof value === 'string' && value.length > 0) return [value];
   if (Array.isArray(value)) return value.filter((entry): entry is string => typeof entry === 'string');
   throw new Error(`Missing string array argument: ${key}`);
+}
+
+/**
+ * Reads a description argument. Unlike other strings, an empty description is a
+ * legal value that clears the field, so it must not be rejected as missing.
+ *
+ * @param args Argument object.
+ * @returns Description text.
+ */
+function descriptionArg(args: Record<string, unknown>): string {
+  const value = args['description'];
+  if (typeof value !== 'string') {
+    throw new Error('Missing string argument: description');
+  }
+  return value;
 }
 
 /**
