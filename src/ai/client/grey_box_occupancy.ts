@@ -111,7 +111,11 @@ function collectVolumeBounds(worldObject: THREE.Object3D, graph: GreyBoxMergedGr
 }
 
 /**
- * Finds the deepest volume whose bounds contain a point.
+ * Finds the volume a point belongs to: the deepest one whose bounds contain it,
+ * and among equally deep candidates the tightest. The tie-break matters because
+ * containment is boundary-inclusive, so a brush centred on the face shared by
+ * two sibling volumes is inside both — a bridge deck flush with the top of the
+ * ravine it crosses is exactly that case, and it belongs to the bridge.
  *
  * @param point World point to place.
  * @param volumes World bounds keyed by grey box id.
@@ -125,15 +129,30 @@ function findInnermostVolumeId(
 ): string | null {
   let bestId: string | null = null;
   let bestDepth = -1;
+  let bestSize = Number.POSITIVE_INFINITY;
   for (const [id, box] of volumes) {
     if (!box.containsPoint(point)) continue;
     const depth = graph.tree.nodes.get(id)?.depth ?? 0;
-    if (depth > bestDepth) {
-      bestDepth = depth;
-      bestId = id;
-    }
+    const size = boundsVolume(box);
+    if (depth < bestDepth) continue;
+    if (depth === bestDepth && size >= bestSize) continue;
+    bestDepth = depth;
+    bestSize = size;
+    bestId = id;
   }
   return bestId;
+}
+
+/**
+ * Measures the enclosed volume of a bounds box, used to pick the tightest of
+ * several equally deep candidates.
+ *
+ * @param box World bounds.
+ * @returns Enclosed volume in cubic world units.
+ */
+function boundsVolume(box: THREE.Box3): number {
+  const size = box.getSize(new THREE.Vector3());
+  return size.x * size.y * size.z;
 }
 
 /** A brush's world center and the solid model that owns it. */

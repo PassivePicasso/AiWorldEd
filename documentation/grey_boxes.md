@@ -177,7 +177,7 @@ far end. Four volumes, three of them nested inside the hall.
 | `great_hall` | room   | yes   | Three-storey hall, the level's spine. Player enters at the west end and must reach the east.    |
 | `chasm`      | ravine | no    | Splits the hall floor. Bottomless read, not a fall the player survives. Rough shape is fine.    |
 | `span`       | bridge | yes   | The only way across. Narrow enough that two players cannot pass. Must line up with both ledges. |
-| `east_ledge` | ledge  | yes   | Landing on the far side, one step above the bridge deck so arriving reads as an ascent.         |
+| `east_ledge` | ledge  | yes   | Landing on the far side, flush with the bridge deck so the two share a face to walk across.     |
 
 Surface intent on `great_hall`: floor "cracked flagstone", wall "soot-stained
 brick", ceiling "timber beams, gaps letting light through", mood "cold, cavernous,
@@ -201,6 +201,12 @@ An agent reading this builds the hall shell first, carves the chasm inside it, t
 the bridge and the ledge — honouring the hall's, bridge's, and ledge's dimensions
 exactly while treating the chasm's shape as a suggestion, and choosing materials
 from the surface intent.
+
+Note the `adjacent` relation between `span` and `east_ledge`: it exists because the
+two are **flush**. Step the ledge up even slightly and they meet along an edge
+instead, which is not a relation — if you want the layout to say "you can walk from
+the bridge onto the ledge", keep the faces flush, or state it with an authored
+connection.
 
 ## What grey boxes are not
 
