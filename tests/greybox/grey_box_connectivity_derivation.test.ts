@@ -68,7 +68,7 @@ describe('grey box nesting', () => {
     const relations = deriveGreyBoxRelations([box('hall', 0, 0, 0, 40, 20, 40), box('pillar', 0, 0, 0, 4, 20, 4)]);
     expect(relations.length).toBe(1);
     expect(relationKinds(relations[0]!)).toEqual(['contains']);
-    expect(relations[0]!.overlapBounds).toBeNull();
+    expect(relations[0]!.overlap).toBeNull();
   });
 
   it('names the larger volume as the parent', () => {
@@ -100,14 +100,45 @@ describe('grey box nesting', () => {
     const relations = deriveGreyBoxRelations([box('a', 0, 0, 0, 10, 10, 10), box('b', 5, 0, 0, 10, 10, 10)]);
     expect(relationKinds(relations[0]!)).toEqual(['overlaps']);
     expect(relations[0]!.containment).toBeNull();
-    expect(relations[0]!.overlapBounds).not.toBeNull();
+    expect(relations[0]!.overlap).not.toBeNull();
   });
 
   it('reports the overlap region of an intersecting pair', () => {
     const relations = deriveGreyBoxRelations([box('a', 0, 0, 0, 10, 10, 10), box('b', 6, 0, 0, 10, 10, 10)]);
-    const overlap = relations[0]!.overlapBounds!;
-    expect(overlap.min.x).toBeCloseTo(1);
-    expect(overlap.max.x).toBeCloseTo(5);
+    const overlap = relations[0]!.overlap!;
+    expect(overlap.bounds.min.x).toBeCloseTo(1);
+    expect(overlap.bounds.max.x).toBeCloseTo(5);
+  });
+
+  it('reports how much of each volume the overlap consumes', () => {
+    const relations = deriveGreyBoxRelations([box('a', 0, 0, 0, 10, 10, 10), box('b', 5, 0, 0, 10, 10, 10)]);
+    const overlap = relations[0]!.overlap!;
+    expect(overlap.fractionOfFirst).toBeCloseTo(0.5);
+    expect(overlap.fractionOfSecond).toBeCloseTo(0.5);
+  });
+
+  it('reports a small clip as a small fraction rather than a warning', () => {
+    const relations = deriveGreyBoxRelations([box('a', 0, 0, 0, 10, 10, 10), box('b', 9, 0, 0, 10, 10, 10)]);
+    const overlap = relations[0]!.overlap!;
+    expect(overlap.fractionOfFirst).toBeCloseTo(0.1);
+    expect(overlap.fractionOfSecond).toBeCloseTo(0.1);
+  });
+
+  it('reports uneven fractions when the volumes differ in size', () => {
+    const relations = deriveGreyBoxRelations([box('big', 0, 0, 0, 20, 10, 10), box('small', 12, 0, 0, 8, 10, 10)]);
+    const overlap = relations[0]!.overlap!;
+    const fractions = [overlap.fractionOfFirst, overlap.fractionOfSecond].sort((left, right) => left - right);
+    expect(fractions[0]).toBeCloseTo(0.1);
+    expect(fractions[1]).toBeCloseTo(0.25);
+  });
+
+  it('attributes overlap fractions to the pair-key order, not the argument order', () => {
+    const big = box('aaa', 0, 0, 0, 20, 10, 10);
+    const small = box('zzz', 12, 0, 0, 8, 10, 10);
+    const forward = deriveGreyBoxRelations([big, small])[0]!.overlap!;
+    const reversed = deriveGreyBoxRelations([small, big])[0]!.overlap!;
+    expect(reversed.fractionOfFirst).toBeCloseTo(forward.fractionOfFirst);
+    expect(reversed.fractionOfSecond).toBeCloseTo(forward.fractionOfSecond);
   });
 
   it('reports nesting without adjacency for a volume flush inside its parent', () => {

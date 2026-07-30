@@ -124,7 +124,7 @@ function derivedEdge(relation: GreyBoxDerivedRelation): GreyBoxGraphEdge {
     containment: relation.containment,
     contacts: relation.contacts,
     totalContactArea: relation.totalContactArea,
-    overlapBounds: relation.overlapBounds,
+    overlap: relation.overlap,
     authoredLinks: [],
   };
 }
@@ -225,7 +225,7 @@ function attachAuthoredLink(link: GreyBoxAuthoredLink, edges: Map<string, GreyBo
     containment: null,
     contacts: [],
     totalContactArea: 0,
-    overlapBounds: null,
+    overlap: null,
     authoredLinks: [link],
   });
 }

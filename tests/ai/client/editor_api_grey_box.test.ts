@@ -342,6 +342,37 @@ describe('EditorApi grey box tools', () => {
     expect(order.length).toBe(2);
   });
 
+  it('reports how much two volumes intersect so the caller can judge it', () => {
+    createVolume(api, 'HallA', { x: 0, y: 0, z: 0 }, undefined, { x: 10, y: 10, z: 10 });
+    createVolume(api, 'HallB', { x: 5, y: 0, z: 0 }, undefined, { x: 10, y: 10, z: 10 });
+    const edges = payload(api.invokeTool('get_grey_box_graph'))['edges'] as Array<Record<string, unknown>>;
+    expect(edges[0]!['relations']).toContain('overlaps');
+    const overlap = edges[0]!['overlap'] as Record<string, unknown>;
+    expect(overlap['fractionOfFirst']).toBeCloseTo(0.5);
+    expect(overlap['fractionOfSecond']).toBeCloseTo(0.5);
+    expect((overlap['min'] as Record<string, number>)['x']).toBeCloseTo(0);
+    expect((overlap['max'] as Record<string, number>)['x']).toBeCloseTo(5);
+  });
+
+  it('reports a slight clip as a small fraction rather than an error', () => {
+    createVolume(api, 'HallA', { x: 0, y: 0, z: 0 }, undefined, { x: 10, y: 10, z: 10 });
+    createVolume(api, 'HallB', { x: 9, y: 0, z: 0 }, undefined, { x: 10, y: 10, z: 10 });
+    const result = api.invokeTool('get_grey_box_graph');
+    expect(result.ok).toBe(true);
+    const edges = payload(result)['edges'] as Array<Record<string, unknown>>;
+    const overlap = edges[0]!['overlap'] as Record<string, unknown>;
+    expect(overlap['fractionOfFirst']).toBeCloseTo(0.1);
+    expect(payload(result)['problems']).toEqual([]);
+  });
+
+  it('leaves overlap null for a nested pair, whose ratio is its magnitude', () => {
+    createVolume(api, 'Hall', { x: 0, y: 0, z: 0 }, undefined, { x: 40, y: 20, z: 40 });
+    createVolume(api, 'Pillar', { x: 0, y: 0, z: 0 }, undefined, { x: 4, y: 20, z: 4 });
+    const edges = payload(api.invokeTool('get_grey_box_graph'))['edges'] as Array<Record<string, unknown>>;
+    expect(edges[0]!['overlap']).toBeNull();
+    expect((edges[0]!['containment'] as Record<string, number>)['ratio']).toBeGreaterThan(0.6);
+  });
+
   it('reports grey box count in the editor context', () => {
     createVolume(api, 'Room', { x: 0, y: 0, z: 0 });
     const data = payload(api.invokeTool('get_editor_context'));

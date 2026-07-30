@@ -43,6 +43,17 @@ export interface GreyBoxEdgePayload {
   relations: string[];
   /** Containment when one volume sits inside the other, else null. */
   containment: { parentGreyBoxId: string; childGreyBoxId: string; ratio: number } | null;
+  /**
+   * How the pair intersects when neither contains the other: the intersecting
+   * box, and how much of each volume is inside the other. Reported, not
+   * judged.
+   */
+  overlap: {
+    min: { x: number; y: number; z: number };
+    max: { x: number; y: number; z: number };
+    fractionOfFirst: number;
+    fractionOfSecond: number;
+  } | null;
   sharedFace: { width: number; height: number; area: number; center: { x: number; y: number; z: number } } | null;
   authoredLinks: Array<{
     connectionId: string;
@@ -182,6 +193,14 @@ export function serializeGreyBoxEdge(edge: GreyBoxGraphEdge): GreyBoxEdgePayload
           parentGreyBoxId: edge.containment.parentId,
           childGreyBoxId: edge.containment.childId,
           ratio: edge.containment.ratio,
+        }
+      : null,
+    overlap: edge.overlap
+      ? {
+          min: { x: edge.overlap.bounds.min.x, y: edge.overlap.bounds.min.y, z: edge.overlap.bounds.min.z },
+          max: { x: edge.overlap.bounds.max.x, y: edge.overlap.bounds.max.y, z: edge.overlap.bounds.max.z },
+          fractionOfFirst: edge.overlap.fractionOfFirst,
+          fractionOfSecond: edge.overlap.fractionOfSecond,
         }
       : null,
     sharedFace: contact

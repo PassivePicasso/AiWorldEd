@@ -78,10 +78,21 @@ describe('buildGreyBoxConnectionRows', () => {
     expect(rows[0]!.label).toContain('muted');
   });
 
-  it('describes an interpenetrating pair as overlapping', () => {
+  it('states how much of the selected volume an overlap consumes', () => {
     right.position.set(5, 0, 0);
     const rows = buildGreyBoxConnectionRows(buildGreyBoxSceneGraph(world), getGreyBoxId(left));
-    expect(rows[0]!.label).toContain('overlapping');
+    expect(rows[0]!.label).toContain('overlapping 50%');
+  });
+
+  it('reports the overlap as a fraction of the selected volume, not the other', () => {
+    right.position.set(40, 0, 0);
+    const narrow = createGreyBoxMesh('Narrow', 5, 10, 10);
+    narrow.position.set(7, 0, 0);
+    world.add(narrow);
+    const leftRows = buildGreyBoxConnectionRows(buildGreyBoxSceneGraph(world), getGreyBoxId(left));
+    const narrowRows = buildGreyBoxConnectionRows(buildGreyBoxSceneGraph(world), getGreyBoxId(narrow));
+    expect(leftRows[0]!.label).toContain('overlapping 5%');
+    expect(narrowRows[0]!.label).toContain('overlapping 10%');
   });
 });
 

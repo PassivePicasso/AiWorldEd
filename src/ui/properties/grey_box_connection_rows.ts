@@ -139,8 +139,23 @@ function describeContact(edge: GreyBoxGraphEdge, ownerId: string): string {
     const contact = edge.contacts[0]!;
     parts.push(`shared face ${formatSize(contact.size.x)} x ${formatSize(contact.size.y)}`);
   }
-  if (edge.overlapBounds) parts.push('overlapping');
+  if (edge.overlap) parts.push(describeOverlap(edge, ownerId));
   return parts.length > 0 ? parts.join(', ') : 'connected';
+}
+
+/**
+ * States how much of the selected volume is inside its neighbour, so the reader
+ * can tell a sliver of clipping from two volumes half merged together.
+ *
+ * @param edge Graph edge holding the overlap.
+ * @param ownerId Id of the selected volume.
+ * @returns Human-readable overlap summary.
+ */
+function describeOverlap(edge: GreyBoxGraphEdge, ownerId: string): string {
+  const overlap = edge.overlap;
+  if (!overlap) return 'overlapping';
+  const fraction = edge.firstId === ownerId ? overlap.fractionOfFirst : overlap.fractionOfSecond;
+  return `overlapping ${Math.round(fraction * 100)}%`;
 }
 
 /**

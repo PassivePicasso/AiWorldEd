@@ -9,6 +9,27 @@ import { GreyBoxContainment } from './grey_box_containment.js';
  */
 export type GreyBoxRelationKind = 'adjacent' | 'overlaps' | 'contains';
 
+/** A partial intersection between two volumes, with its extent. */
+export interface GreyBoxOverlap {
+  /**
+   * Axis-aligned intersection of the two world bounds. Approximate for rotated
+   * volumes.
+   */
+  bounds: THREE.Box3;
+
+  /**
+   * Fraction of the volume sorted first in the pair key that lies inside the
+   * other.
+   */
+  fractionOfFirst: number;
+
+  /**
+   * Fraction of the volume sorted second in the pair key that lies inside the
+   * other.
+   */
+  fractionOfSecond: number;
+}
+
 /** One shared face region between two volumes. */
 export interface GreyBoxFaceContact {
   /** Outward normal on the first volume's side of the contact. */
@@ -51,11 +72,11 @@ export interface GreyBoxDerivedRelation {
   totalContactArea: number;
 
   /**
-   * Axis-aligned intersection of the two world bounds when the volumes overlap
-   * without one containing the other, else null. Approximate for rotated
-   * volumes.
+   * How the volumes intersect when neither contains the other, else null.
+   * Reported rather than judged: whether a given overlap is intentional depends
+   * on what the two volumes are for, which only the reader knows.
    */
-  overlapBounds: THREE.Box3 | null;
+  overlap: GreyBoxOverlap | null;
 
   /** Containment when one volume sits inside the other, else null. */
   containment: GreyBoxContainment | null;
@@ -68,7 +89,7 @@ export interface GreyBoxDerivedRelation {
  * @param firstId Id sorted first in the pair key.
  * @param secondId Id sorted second in the pair key.
  * @param contacts Shared face regions, in any order.
- * @param overlapBounds Overlap region, or null.
+ * @param overlap Partial intersection with its extent, or null.
  * @param containment Containment record, or null.
  * @returns Derived relation for the pair.
  */
@@ -77,7 +98,7 @@ export function createDerivedRelation(
   firstId: string,
   secondId: string,
   contacts: GreyBoxFaceContact[],
-  overlapBounds: THREE.Box3 | null,
+  overlap: GreyBoxOverlap | null,
   containment: GreyBoxContainment | null,
 ): GreyBoxDerivedRelation {
   const ordered = [...contacts].sort((left, right) => right.area - left.area);
@@ -87,7 +108,7 @@ export function createDerivedRelation(
     secondId,
     contacts: ordered,
     totalContactArea: ordered.reduce((sum, contact) => sum + contact.area, 0),
-    overlapBounds,
+    overlap,
     containment,
   };
 }
@@ -100,7 +121,7 @@ export function createDerivedRelation(
  * @returns True when at least one relation holds.
  */
 export function hasAnyRelation(relation: GreyBoxDerivedRelation): boolean {
-  return relation.contacts.length > 0 || relation.overlapBounds !== null || relation.containment !== null;
+  return relation.contacts.length > 0 || relation.overlap !== null || relation.containment !== null;
 }
 
 /**
@@ -113,6 +134,6 @@ export function relationKinds(relation: GreyBoxDerivedRelation): GreyBoxRelation
   const kinds: GreyBoxRelationKind[] = [];
   if (relation.containment) kinds.push('contains');
   if (relation.contacts.length > 0) kinds.push('adjacent');
-  if (relation.overlapBounds) kinds.push('overlaps');
+  if (relation.overlap) kinds.push('overlaps');
   return kinds;
 }

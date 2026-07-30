@@ -39,7 +39,15 @@ can hold more than one:
   door or corridor mouth can go, and its size is reported so an opening can be
   sized against it.
 - **overlaps** — two volumes intersect without one containing the other. Common
-  for an angled bridge driving into a wall, and perfectly normal.
+  for an angled bridge driving into a wall, and perfectly normal. The editor
+  reports the intersecting box and **how much of each volume it consumes**, so a
+  connection row reads `overlapping 5%` from one side and `overlapping 10%` from
+  the other when the volumes differ in size.
+
+The editor does not decide which intersections are mistakes. It reports what
+intersects and by how much, and leaves the judgement to you or the agent reading
+the layout: a couple of percent is usually deliberate contact, two spaces half
+inside each other usually is not.
 
 Volumes that meet only along an edge or at a corner are not related — neither is a
 route a player can walk, nor a feature of the other space.

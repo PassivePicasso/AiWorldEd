@@ -1,6 +1,6 @@
 import * as THREE from 'three';
 import { GreyBoxConnectionDirection } from '../model/grey_box_connection.js';
-import { GreyBoxFaceContact, GreyBoxRelationKind } from './grey_box_derived_connection.js';
+import { GreyBoxFaceContact, GreyBoxOverlap, GreyBoxRelationKind } from './grey_box_derived_connection.js';
 import type { GreyBoxContainment } from './grey_box_containment.js';
 import type { GreyBoxContainmentTree } from './grey_box_containment_tree.js';
 
@@ -94,8 +94,8 @@ export interface GreyBoxGraphEdge {
   /** Sum of shared face areas; zero when there is no face contact. */
   totalContactArea: number;
 
-  /** Overlap region for interpenetrating pairs, else null. */
-  overlapBounds: THREE.Box3 | null;
+  /** How the pair intersects when neither contains the other, else null. */
+  overlap: GreyBoxOverlap | null;
 
   /** Authored links covering this pair, empty for a purely derived edge. */
   authoredLinks: GreyBoxAuthoredLink[];

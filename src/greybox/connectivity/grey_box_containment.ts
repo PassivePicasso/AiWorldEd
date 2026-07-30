@@ -50,30 +50,69 @@ export function greyBoxContainmentRatio(child: GreyBoxOrientedVolume, parent: Gr
   return sampledContainmentRatio(child, parent);
 }
 
+/** How much of each volume of a pair lies inside the other, and any nesting. */
+export interface GreyBoxContainmentMeasurement {
+  /** Fraction of the first volume inside the second, 0 to 1. */
+  firstInsideSecond: number;
+
+  /** Fraction of the second volume inside the first, 0 to 1. */
+  secondInsideFirst: number;
+
+  /** Nesting when one volume is inside the other far enough, else null. */
+  containment: GreyBoxContainment | null;
+}
+
 /**
- * Resolves which volume of a pair contains the other, when either does. The
- * better-contained volume is the child; an exact tie falls to the smaller
+ * Measures a pair both ways and resolves nesting from it. The ratios come back
+ * whether or not they amount to containment: a pair that merely clips still
+ * needs a number, because how much two volumes intersect is what decides
+ * whether the intersection matters, and only the person or agent reading the
+ * layout can judge that.
+ *
+ * The better-contained volume is the child; an exact tie falls to the smaller
  * volume, then to id order, so the answer never depends on iteration order.
  *
  * @param first One volume of the pair.
  * @param second The other volume.
- * @returns Containment record, or null when neither is nested in the other.
+ * @returns Both ratios plus the containment they imply, if any.
  */
-export function resolveGreyBoxContainment(
+export function measureGreyBoxContainment(
   first: GreyBoxOrientedVolume,
   second: GreyBoxOrientedVolume,
+): GreyBoxContainmentMeasurement {
+  const firstInsideSecond = greyBoxContainmentRatio(first, second);
+  const secondInsideFirst = greyBoxContainmentRatio(second, first);
+  return {
+    firstInsideSecond,
+    secondInsideFirst,
+    containment: resolveContainment(first, second, firstInsideSecond, secondInsideFirst),
+  };
+}
+
+/**
+ * Decides which volume holds the other, if either does.
+ *
+ * @param first One volume of the pair.
+ * @param second The other volume.
+ * @param firstInsideSecond Fraction of the first inside the second.
+ * @param secondInsideFirst Fraction of the second inside the first.
+ * @returns Containment record, or null when neither is nested in the other.
+ */
+function resolveContainment(
+  first: GreyBoxOrientedVolume,
+  second: GreyBoxOrientedVolume,
+  firstInsideSecond: number,
+  secondInsideFirst: number,
 ): GreyBoxContainment | null {
-  const firstInSecond = greyBoxContainmentRatio(first, second);
-  const secondInFirst = greyBoxContainmentRatio(second, first);
-  if (firstInSecond < GREY_BOX_CONTAINMENT_MIN_RATIO && secondInFirst < GREY_BOX_CONTAINMENT_MIN_RATIO) {
+  if (firstInsideSecond < GREY_BOX_CONTAINMENT_MIN_RATIO && secondInsideFirst < GREY_BOX_CONTAINMENT_MIN_RATIO) {
     return null;
   }
-  if (Math.abs(firstInSecond - secondInFirst) > 1e-6) {
-    return firstInSecond > secondInFirst
-      ? { parentId: second.id, childId: first.id, ratio: firstInSecond }
-      : { parentId: first.id, childId: second.id, ratio: secondInFirst };
+  if (Math.abs(firstInsideSecond - secondInsideFirst) > 1e-6) {
+    return firstInsideSecond > secondInsideFirst
+      ? { parentId: second.id, childId: first.id, ratio: firstInsideSecond }
+      : { parentId: first.id, childId: second.id, ratio: secondInsideFirst };
   }
-  return resolveTiedContainment(first, second, firstInSecond);
+  return resolveTiedContainment(first, second, firstInsideSecond);
 }
 
 /**

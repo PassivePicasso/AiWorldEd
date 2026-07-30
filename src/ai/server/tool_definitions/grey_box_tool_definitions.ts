@@ -41,9 +41,12 @@ export const GREY_BOX_TOOL_DEFINITIONS: McpToolDefinition[] = [
       'children, and depth, so the layout reads as a hierarchy. buildOrder suggests working outside in - a shell ' +
       'before the features cut into it - and is guidance, not a requirement. Edges carry every relation a pair holds: ' +
       '"contains" with a containment ratio, "adjacent" with the shared-face rect you size a doorway against, and ' +
-      '"overlaps" with the intersecting region. Authored links add routes geometry cannot imply, such as an elevator ' +
-      'or a one-way drop. Muted adjacencies and unresolved links are reported separately. ' +
-      'Nesting and intersection are normal in a blockout, not mistakes to fix.',
+      '"overlaps" with the intersecting box plus how much of each volume it consumes. Authored links add routes ' +
+      'geometry cannot imply, such as an elevator or a one-way drop. Muted relations and unresolved links are ' +
+      'reported separately. Nesting and intersection are normal in a blockout, not mistakes to fix - the editor ' +
+      'reports what intersects and by how much, and leaves the judgement to you: a couple of percent is usually ' +
+      'deliberate contact, two spaces half inside each other usually is not. Use the roles and descriptions to ' +
+      'decide, and say so rather than silently building around it.',
     emptySchema(),
   ),
   tool(
