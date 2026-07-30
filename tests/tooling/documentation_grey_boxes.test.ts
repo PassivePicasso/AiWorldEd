@@ -2,6 +2,10 @@ import { existsSync, readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { describe, expect, it } from 'vitest';
 import { findMcpTool } from '../../src/ai/server/mcp_tool_registry.js';
+import { KNOWN_GREY_BOX_ROLES } from '../../src/greybox/model/grey_box_role.js';
+
+/** Backtick used when checking code-quoted values in the docs. */
+const QUOTE = String.fromCharCode(96);
 
 /** User guide page describing grey box planning volumes. */
 const GREY_BOX_PAGE = 'documentation/grey_boxes.md';
@@ -47,6 +51,58 @@ describe('grey box documentation', () => {
     expect(page).toContain('never appear in an fbx, obj, or glb export');
   });
 
+  it('teaches nesting as the normal case', () => {
+    const page = readRepoFile(GREY_BOX_PAGE);
+    expect(page).toContain('## Nesting is the normal case');
+    expect(page.toLowerCase()).toContain('feature of that space');
+    expect(page.toLowerCase()).toContain('perfectly normal');
+  });
+
+  it('no longer frames overlap as a probable mistake', () => {
+    const page = readRepoFile(GREY_BOX_PAGE).toLowerCase();
+    expect(page).not.toContain('usually means you intended one merged space');
+  });
+
+  it('documents the three relation kinds', () => {
+    const page = readRepoFile(GREY_BOX_PAGE);
+    for (const relation of ['**contains**', '**adjacent**', '**overlaps**']) {
+      expect(page, relation).toContain(relation);
+    }
+  });
+
+  it('documents Outliner parenting as the containment override', () => {
+    const page = readRepoFile(GREY_BOX_PAGE);
+    expect(page).toContain('### Correcting the hierarchy');
+    expect(page).toContain('parent one grey box under another in the Outliner');
+  });
+
+  it('documents every role the editor understands', () => {
+    const page = readRepoFile(GREY_BOX_PAGE);
+    for (const role of KNOWN_GREY_BOX_ROLES) {
+      expect(page, role).toContain(QUOTE + role + QUOTE);
+    }
+  });
+
+  it('documents what fixity obliges and permits', () => {
+    const page = readRepoFile(GREY_BOX_PAGE);
+    expect(page).toContain('Dimensions are exact');
+    expect(page.toLowerCase()).toContain('must be built');
+    expect(page.toLowerCase()).toContain('suggestion an agent may');
+  });
+
+  it('documents surface intent as feel rather than texture assignment', () => {
+    const page = readRepoFile(GREY_BOX_PAGE);
+    expect(page).toContain('Surface and mood');
+    expect(page.toLowerCase()).toContain('not texture assignments');
+  });
+
+  it('shows the brief an agent receives in the worked example', () => {
+    const page = readRepoFile(GREY_BOX_PAGE);
+    expect(page).toContain('rootGreyBoxIds');
+    expect(page).toContain('buildOrder');
+    expect(page).toContain('contains ratio');
+  });
+
   it('documents the real Add menu path', () => {
     const page = readRepoFile(GREY_BOX_PAGE);
     expect(page).toContain('Add > Layout > Grey Box');
@@ -65,11 +121,10 @@ describe('grey box documentation', () => {
     expect(page).toContain('**Unmute**');
   });
 
-  it('shows a worked example with a graph and description guidance', () => {
+  it('shows a nested worked example with description guidance', () => {
     const page = readRepoFile(GREY_BOX_PAGE);
     expect(page).toContain('## A worked example');
-    expect(page).toContain('derived');
-    expect(page).toContain('authored');
+    expect(page.toLowerCase()).toContain('nested inside the hall');
     expect(page.toLowerCase()).toContain('weak description');
   });
 
@@ -93,6 +148,19 @@ describe('grey box documentation', () => {
     const readme = readRepoFile(MCP_README);
     expect(readme).toContain('## Grey boxes: read the layout, then populate it');
     expect(readme.toLowerCase()).toContain('planning volumes, not');
+  });
+
+  it('tells agents that volumes nest and to build outside in', () => {
+    const readme = readRepoFile(MCP_README).toLowerCase();
+    expect(readme).toContain('they **nest**');
+    expect(readme).toContain('work outside in');
+    expect(readme).toContain('buildorder');
+  });
+
+  it('states the fixity contract for agents', () => {
+    const readme = readRepoFile(MCP_README);
+    expect(readme).toContain('sizeIntent: "exact"');
+    expect(readme.toLowerCase()).toContain('suggestion you may refine');
   });
 
   it('references only grey box tool names that exist in the catalog', () => {

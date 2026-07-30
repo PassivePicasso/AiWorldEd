@@ -121,8 +121,9 @@ Same-solid only: reparent/group never moves a brush out of its solid model root.
 | `preview_transform` / `preview_new_box`                            | Dry-run existing or new box bounds                         |
 | `explain_csg_at_point` / `query_void_connectivity`                 | CSG solid/void; approx cavity path                         |
 | `validate_brush` / `validate_solid_model`                          | Topology checks                                            |
-| `list_grey_boxes` / `get_grey_box` / `get_grey_box_graph`          | Read the grey box layout brief                             |
+| `list_grey_boxes` / `get_grey_box` / `get_grey_box_graph`          | Read the grey box layout brief (hierarchy + relations)     |
 | `create_grey_box` / `rename_grey_box` / `set_grey_box_description` | Author planning volumes                                    |
+| `set_grey_box_role` / `set_grey_box_intent`                        | Classify a volume; record fixity and surface feel          |
 | `set_grey_box_transform` / `delete_grey_boxes`                     | Move, resize, remove volumes                               |
 | `connect_grey_boxes` / `disconnect_grey_boxes`                     | State or mute routes between volumes                       |
 | `create_solid_model` / `add_box_brush` / `add_box_brushes`         | Create geometry (`parentGroupId` supported)                |
@@ -167,39 +168,53 @@ Solid mutations (including hierarchy create/reparent/rename/ungroup) are **undoa
 
 ## Grey boxes: read the layout, then populate it
 
-A **grey box** is a named, described box volume the user places to mark out where
-a space goes and what it is for. Grey boxes are **planning volumes, not
-geometry**: they never compile into a solid result and never export. They exist
-so a level's design intent can be read and built against.
+A **grey box** is a named, described box volume the user places to mark out where a
+space goes and what it is for. Grey boxes are **planning volumes, not geometry**:
+they never compile into a solid result and never export.
+
+They **nest**. A volume contained by another describes a feature _within_ that
+space - a ravine in a hall, a bridge over the ravine, a ledge at its end - not a
+separate room. Nesting and intersection are normal in a blockout, not mistakes to
+report back.
 
 The workflow this enables:
 
-1. `get_grey_box_graph` — one call returns every volume (id, name, description,
-   center, size) plus how they connect: edges marked `derived` (the volumes share
-   a face, with the shared opening's width, height, and area) or `authored` (the
-   user stated a route such as an elevator or a one-way drop, with a label, note,
-   and direction). Muted adjacencies and unresolved authored links come back
-   separately so nothing is silently dropped.
-2. Read each volume's **description**. That prose is the brief — role, mood,
-   constraints. Build to it.
-3. `get_grey_box` before building in a volume. Its `occupancy` field reports the
-   solid models and brush count already inside, so you can tell an untouched
-   volume from one you have already filled.
-4. Author the geometry with the ordinary solid tools (`create_solid_model`,
-   `add_room_shell`, `add_box_brush`, `cut_opening`, …), placing brushes inside
-   the grey box bounds. Size doorways against the reported shared-face rect so
-   spaces line up where the layout says they connect.
+1. `get_grey_box_graph` - one call returns the whole brief. `rootGreyBoxIds` are
+   the outermost spaces; each node carries `parentGreyBoxId`, `childGreyBoxIds`,
+   and `depth`, so the layout reads as a hierarchy rather than a list. Edges carry
+   every relation a pair holds: `contains` with a ratio, `adjacent` with the
+   shared-face rect, `overlaps` with the intersecting region. Authored links add
+   routes geometry cannot imply - an elevator, a one-way drop - with a label, note,
+   and direction. Muted relations and unresolved links come back separately so
+   nothing is silently dropped.
+2. **Work outside in.** `buildOrder` lists a parent before anything nested inside
+   it: build the shell, then carve and add the features. It is guidance, not a
+   requirement.
+3. **Honour the fixity contract.** `sizeIntent: "exact"` means the volume is
+   measured and you must build to its dimensions. `"approximate"` means the shape
+   is a suggestion you may refine. Getting this wrong in either direction is the
+   most common way to disappoint the user.
+4. **Read the role and the description.** `role` says what kind of space it is
+   (room, corridor, bridge, ledge, platform, pit, ravine, cover, hazard, landmark,
+   objective, spawn, transition, or a word the user chose). The description is the
+   brief; the `surface` hints - floor, wall, ceiling, mood - say how it should
+   feel, and are intent rather than texture ids.
+5. **Check before building.** `get_grey_box` reports `ownBrushCount` for the volume
+   itself and `subtreeBrushCount` including everything nested inside, so you can
+   tell an untouched volume from one you already filled.
+6. **Build with the ordinary solid tools** (`create_solid_model`,
+   `add_room_shell`, `add_box_brush`, `cut_opening`, ...), placing brushes inside
+   the volume's bounds and sizing openings against the reported shared-face rect.
 
 Notes:
 
-- Derived connectivity is computed from real volume orientation, so rotated grey
-  boxes work. Volumes meeting only at an edge or corner are **not** connected.
+- Relations are computed from real volume orientation, so rotated and angled
+  volumes work. Volumes meeting only at an edge or corner are not related.
 - Every grey box write tool is undoable through `undo`.
-- `get_editor_context` reports `greyBoxCount`, and `get_scene_hierarchy` lists
-  grey box nodes.
-- Creating a grey box yourself is legitimate when the user asks you to block out
-  a layout, but the usual direction is the other way: the user blocks out, you
-  build.
+- `get_editor_context` reports `greyBoxCount`, and `get_scene_hierarchy` lists grey
+  box nodes.
+- Creating volumes yourself is legitimate when the user asks you to block out a
+  layout, but the usual direction is the other way: the user blocks out, you build.
 
 ## Not in this build
 
