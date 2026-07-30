@@ -19,9 +19,19 @@ level's design intent, saved alongside it.
 ## Create a grey box
 
 Choose **Add > Layout > Grey Box**. The volume appears in front of the camera,
-snapped to the grid and selected, drawn as a translucent box with a bright
-outline so it stays readable in the 3D view and in the top, front, and side
-views. Geometry you author inside it remains visible through the fill.
+snapped to the grid and selected.
+
+Grey boxes are drawn the same way solid brush helpers are, for the same reason —
+a blocked-out level has to stay readable:
+
+- **Outline only, unless selected.** A volume shows its bright wireframe at all
+  times; the translucent fill appears only while it is selected. Ten filled
+  volumes would stack into mush, so only the one you are working on is filled.
+- **Outlines fade with distance in the 3D view** and stop drawing entirely far
+  away, so a large layout does not bury the geometry inside it. A selected volume
+  keeps its outline over a longer range.
+- **In the top, front, and side views the wireframe is always complete**, drawn
+  over everything, because that is where you read the layout.
 
 Move, rotate, and resize a grey box with the same transform tools you use for any
 other object. Rotation is fully supported; connectivity is computed from the

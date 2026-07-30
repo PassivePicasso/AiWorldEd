@@ -8,6 +8,9 @@ import { Viewport3D } from '../../viewports/viewport_3d.js';
 import { Viewport2D } from '../../viewports/viewport_2d.js';
 import { SolidBrushVisual } from '../../solid/model/solid_brush_visual.js';
 import { SolidBrushEdgeFader } from '../../solid/model/solid_brush_edge_fader.js';
+import { GreyBoxEdgeFader } from '../../greybox/model/grey_box_edge_fader.js';
+import { isGreyBox } from '../../greybox/model/grey_box_keys.js';
+import { setGreyBoxFillVisible } from '../../greybox/model/grey_box_visual.js';
 import { SolidBrushEdgeBatch } from '../../solid/model/solid_brush_edge_batch.js';
 
 /**
@@ -22,6 +25,7 @@ export class SelectionVisualController {
   private shadingControllers: ViewportShadingController[];
   /** Brush meshes currently showing a translucent hull fill. */
   private hullFillMeshes = new Set<THREE.Mesh>();
+  private greyBoxFillMeshes = new Set<THREE.Mesh>();
 
   /**
    * Creates a selection visual controller.
@@ -68,8 +72,10 @@ export class SelectionVisualController {
     const selected = this.selectionManager.getSelectedObjects();
     selected.forEach((mesh) => this.highlightMeshAndClones(mesh));
     this.syncSolidBrushHullFills();
+    this.syncGreyBoxFills();
     this.syncSolidBrushEdgeBatches();
     SolidBrushEdgeFader.invalidateCameraCache();
+    GreyBoxEdgeFader.invalidateCameraCache();
   }
 
   /** Re-applies outlines after 2D viewport clones are rebuilt. */
@@ -143,6 +149,53 @@ export class SelectionVisualController {
       this.applyBrushHullFillToMeshAndClones(mesh, true);
     }
     this.hullFillMeshes = nextFills;
+  }
+
+  /**
+   * Fills only the selected grey box volumes, world meshes plus 2D clones.
+   * Unselected volumes stay outline-only, so a blocked-out level reads as a set
+   * of wireframe rooms rather than stacked translucent boxes. Only volumes that
+   * enter or leave the selection are restyled.
+   */
+  private syncGreyBoxFills(): void {
+    const nextFills = this.collectSelectedGreyBoxes();
+    for (const mesh of this.greyBoxFillMeshes) {
+      if (nextFills.has(mesh)) continue;
+      this.applyGreyBoxFillToMeshAndClones(mesh, false);
+    }
+    for (const mesh of nextFills) {
+      if (this.greyBoxFillMeshes.has(mesh)) continue;
+      this.applyGreyBoxFillToMeshAndClones(mesh, true);
+    }
+    this.greyBoxFillMeshes = nextFills;
+  }
+
+  /**
+   * Collects selected grey box volumes still parented in a scene.
+   *
+   * @returns Set of volumes that should show a fill.
+   */
+  private collectSelectedGreyBoxes(): Set<THREE.Mesh> {
+    const nextFills = new Set<THREE.Mesh>();
+    for (const mesh of this.selectionManager.getSelectedObjects()) {
+      if (!isGreyBox(mesh)) continue;
+      if (!mesh.parent) continue;
+      nextFills.add(mesh);
+    }
+    return nextFills;
+  }
+
+  /**
+   * Applies fill visibility to a grey box volume and its 2D clones.
+   *
+   * @param worldMesh Authoritative grey box mesh.
+   * @param fillVisible Whether the translucent volume should be drawn.
+   */
+  private applyGreyBoxFillToMeshAndClones(worldMesh: THREE.Mesh, fillVisible: boolean): void {
+    setGreyBoxFillVisible(worldMesh, fillVisible);
+    this.viewportSyncManager
+      .findCloneMeshesForWorldUuid(worldMesh.uuid)
+      .forEach((clone) => setGreyBoxFillVisible(clone, fillVisible));
   }
 
   /**

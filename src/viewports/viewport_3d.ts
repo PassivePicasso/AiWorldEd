@@ -16,6 +16,7 @@ import { blurActiveFormField } from '../utils/dom_focus.js';
 import { isEditorHelperObject } from '../utils/mesh_edge_sync.js';
 import { getDefaultPerspectiveCameraPosition, getDefaultSceneFocus } from '../navigation/default_camera_placement.js';
 import { SolidBrushEdgeFader } from '../solid/model/solid_brush_edge_fader.js';
+import { GreyBoxEdgeFader } from '../greybox/model/grey_box_edge_fader.js';
 import { measurePaneLogicalRectAgainst } from './pane_content_rect.js';
 import { hideGizmoAfterRenderPass, showGizmoForRenderPass } from '../transform/gizmo/gizmo_viewport_visibility.js';
 
@@ -426,6 +427,8 @@ export class Viewport3D extends BaseViewport {
     if (!this.worldGroup) return;
     SolidBrushEdgeFader.prepareForPerspectivePass(this.worldGroup);
     SolidBrushEdgeFader.updateForCamera(this.worldGroup, this.camera);
+    GreyBoxEdgeFader.prepareForPerspectivePass(this.worldGroup);
+    GreyBoxEdgeFader.updateForCamera(this.worldGroup, this.camera);
   }
 
   /**

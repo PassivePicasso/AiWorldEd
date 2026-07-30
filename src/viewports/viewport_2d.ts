@@ -17,6 +17,7 @@ import { DEFAULT_ORTHO_HALF_EXTENT } from '../types/editor_config.js';
 import { getDefaultSceneFocus } from '../navigation/default_camera_placement.js';
 import { OrthoDepthRanger } from './ortho_depth_ranger.js';
 import { SolidBrushEdgeFader } from '../solid/model/solid_brush_edge_fader.js';
+import { GreyBoxEdgeFader } from '../greybox/model/grey_box_edge_fader.js';
 import { hideGizmoAfterRenderPass, showGizmoForRenderPass } from '../transform/gizmo/gizmo_viewport_visibility.js';
 
 /** Options for constructing a shared-scene orthographic pane. */
@@ -394,6 +395,7 @@ export class Viewport2D extends BaseViewport {
     showGizmoForRenderPass(this.gizmoGroup);
     if (this.worldGroup) {
       SolidBrushEdgeFader.prepareForOrthographicPass(this.worldGroup);
+      GreyBoxEdgeFader.prepareForOrthographicPass(this.worldGroup);
     }
     SelectionHighlight.setDepthOcclusionEnabled(false);
     OrthoDepthRanger.update(this.camera, this.scene);
