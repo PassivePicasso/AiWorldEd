@@ -18,6 +18,12 @@ export interface GreyBoxGraphNode {
   /** Gameplay function of the volume. */
   role: string;
 
+  /** How firm the volume's dimensions are. */
+  sizeIntent: string;
+
+  /** Intended surface treatment and mood. */
+  surface: { floor: string; wall: string; ceiling: string; mood: string };
+
   /** World center of the volume. */
   center: THREE.Vector3;
 

@@ -1,6 +1,14 @@
 import { GreyBoxData } from '../model/grey_box_data.js';
 import { DEFAULT_GREY_BOX_ROLE, normalizeGreyBoxRole } from '../model/grey_box_role.js';
 import {
+  DEFAULT_GREY_BOX_SIZE_INTENT,
+  GREY_BOX_SURFACE_FIELDS,
+  GreyBoxSizeIntent,
+  GreyBoxSurfaceIntent,
+  createEmptySurfaceIntent,
+  isGreyBoxSizeIntent,
+} from '../model/grey_box_intent.js';
+import {
   GreyBoxExplicitConnection,
   createExplicitConnection,
   isGreyBoxConnectionDirection,
@@ -24,6 +32,10 @@ export interface SerializedGreyBox {
   description: string;
   /** Gameplay role. Absent in scenes written before roles existed. */
   role?: string;
+  /** How firm the dimensions are. Absent in scenes written before intent. */
+  sizeIntent?: string;
+  /** Surface and mood hints. Absent in scenes written before intent. */
+  surface?: { floor: string; wall: string; ceiling: string; mood: string };
   explicitConnections: SerializedGreyBoxConnection[];
   suppressedDerivedConnections: string[];
 }
@@ -45,6 +57,8 @@ export class GreyBoxCodec {
       id: data.id,
       description: data.description,
       role: data.role,
+      sizeIntent: data.sizeIntent,
+      surface: { ...data.surface },
       explicitConnections: data.explicitConnections.map((connection) => this.encodeConnection(connection)),
       suppressedDerivedConnections: data.suppressedDerivedConnections.slice(),
     };
@@ -63,6 +77,8 @@ export class GreyBoxCodec {
       id: this.requireNonEmptyString(record['id'], 'id', objectLabel),
       description: this.requireString(record['description'], 'description', objectLabel),
       role: this.decodeRole(record['role'], objectLabel),
+      sizeIntent: this.decodeSizeIntent(record['sizeIntent'], objectLabel),
+      surface: this.decodeSurface(record['surface'], objectLabel),
       explicitConnections: this.decodeConnections(record['explicitConnections'], objectLabel),
       suppressedDerivedConnections: this.decodeSuppressions(record['suppressedDerivedConnections'], objectLabel),
     };
@@ -96,6 +112,40 @@ export class GreyBoxCodec {
   private static decodeRole(value: unknown, objectLabel: string): string {
     if (value === undefined) return DEFAULT_GREY_BOX_ROLE;
     return normalizeGreyBoxRole(this.requireString(value, 'role', objectLabel));
+  }
+
+  /**
+   * Decodes the size intent. Absent is the pre-intent migration value; present
+   * but not a legal value is malformed and throws.
+   *
+   * @param value Candidate size intent.
+   * @param objectLabel Label naming the offending object.
+   * @returns Stored size intent.
+   */
+  private static decodeSizeIntent(value: unknown, objectLabel: string): GreyBoxSizeIntent {
+    if (value === undefined) return DEFAULT_GREY_BOX_SIZE_INTENT;
+    if (!isGreyBoxSizeIntent(value)) {
+      throw new Error(`Grey box ${objectLabel} has an unknown sizeIntent "${String(value)}"`);
+    }
+    return value;
+  }
+
+  /**
+   * Decodes surface intent. Absent is the pre-intent migration value; present
+   * but malformed throws, and each field must be a string even when empty.
+   *
+   * @param value Candidate surface record.
+   * @param objectLabel Label naming the offending object.
+   * @returns Stored surface intent.
+   */
+  private static decodeSurface(value: unknown, objectLabel: string): GreyBoxSurfaceIntent {
+    if (value === undefined) return createEmptySurfaceIntent();
+    const record = this.requireRecord(value, objectLabel);
+    const surface = createEmptySurfaceIntent();
+    for (const field of GREY_BOX_SURFACE_FIELDS) {
+      surface[field] = this.requireString(record[field], `surface ${field}`, objectLabel);
+    }
+    return surface;
   }
 
   /**

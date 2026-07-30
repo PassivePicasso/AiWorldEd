@@ -11,7 +11,11 @@ import { CommandStack } from '../../commands/command_stack.js';
 import { GridSnap } from '../../transform/snap/grid_snap.js';
 import { TextureLockSettings } from '../../texture/lock/texture_lock_settings.js';
 import { createAddMenuEntries } from './add_menu_entries.js';
-import { commitGreyBoxDescription, commitGreyBoxRole } from '../hierarchy/grey_box_description_commit.js';
+import {
+  commitGreyBoxDescription,
+  commitGreyBoxIntent,
+  commitGreyBoxRole,
+} from '../hierarchy/grey_box_description_commit.js';
 import { createGreyBoxConnectionHandlers } from '../hierarchy/grey_box_connection_actions.js';
 import { buildGreyBoxSceneGraph } from '../../greybox/connectivity/grey_box_scene_graph.js';
 import type { OutlinerDropPlacement } from '../../ui/outliner/outliner_drop_placement.js';
@@ -349,6 +353,7 @@ export class EditorShellBuilder {
       commitGreyBoxDescription(commandStack, greyBox, description),
     );
     propertiesPanel.setGreyBoxRoleCommitter((greyBox, role) => commitGreyBoxRole(commandStack, greyBox, role));
+    propertiesPanel.setGreyBoxIntentCommitter((greyBox, patch) => commitGreyBoxIntent(commandStack, greyBox, patch));
     this.bindGreyBoxConnections(propertiesPanel, commandStack, worldObject);
     return propertiesPanel;
   }

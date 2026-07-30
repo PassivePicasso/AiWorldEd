@@ -2,6 +2,7 @@ import * as THREE from 'three';
 import { CommandStack } from '../../commands/command_stack.js';
 import { SetGreyBoxDescriptionCommand } from '../../commands/greybox/set_grey_box_description_command.js';
 import { SetGreyBoxRoleCommand } from '../../commands/greybox/set_grey_box_role_command.js';
+import { GreyBoxIntentPatch, SetGreyBoxIntentCommand } from '../../commands/greybox/set_grey_box_intent_command.js';
 import { isObjectOrAncestorLocked } from '../../utils/object_lock.js';
 
 /**
@@ -37,5 +38,24 @@ export function commitGreyBoxRole(commandStack: CommandStack, greyBox: THREE.Obj
   if (!(greyBox instanceof THREE.Mesh)) return;
   const command = SetGreyBoxRoleCommand.fromCurrent(greyBox, role);
   if (!command.changesRole()) return;
+  commandStack.push(command);
+}
+
+/**
+ * Commits a grey box intent edit as a single undoable step, skipping an edit
+ * that changes nothing.
+ *
+ * @param commandStack Undo stack receiving the edit.
+ * @param greyBox Grey box being described.
+ * @param patch Intent fields to change.
+ */
+export function commitGreyBoxIntent(
+  commandStack: CommandStack,
+  greyBox: THREE.Object3D,
+  patch: GreyBoxIntentPatch,
+): void {
+  if (isObjectOrAncestorLocked(greyBox)) return;
+  const command = SetGreyBoxIntentCommand.fromCurrent(greyBox, patch);
+  if (!command.changesIntent()) return;
   commandStack.push(command);
 }

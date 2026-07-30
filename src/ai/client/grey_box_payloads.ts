@@ -11,6 +11,10 @@ export interface GreyBoxNodePayload {
   description: string;
   /** Gameplay function of the volume. */
   role: string;
+  /** 'exact' means build to these dimensions; 'approximate' invites refining. */
+  sizeIntent: string;
+  /** Intended surface treatment and mood; hints, not texture assignments. */
+  surface: { floor: string; wall: string; ceiling: string; mood: string };
   /** Volume this one sits inside, or null when it is a root. */
   parentGreyBoxId: string | null;
   /** Nesting depth, zero for a root. */
@@ -59,6 +63,8 @@ export function serializeGreyBoxNode(node: GreyBoxGraphNode): GreyBoxNodePayload
     name: node.name,
     description: node.description,
     role: node.role,
+    sizeIntent: node.sizeIntent,
+    surface: { ...node.surface },
     parentGreyBoxId: node.parentId,
     depth: node.depth,
     center: { x: node.center.x, y: node.center.y, z: node.center.z },

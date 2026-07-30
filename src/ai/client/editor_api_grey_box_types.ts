@@ -31,3 +31,10 @@ export interface DisconnectGreyBoxesArgs {
   connectionId?: string;
   targetGreyBoxId?: string;
 }
+
+/** Arguments for set_grey_box_intent. */
+export interface SetGreyBoxIntentArgs {
+  greyBoxId: string;
+  sizeIntent?: 'exact' | 'approximate';
+  surface?: { floor?: string; wall?: string; ceiling?: string; mood?: string };
+}

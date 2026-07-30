@@ -10,6 +10,7 @@ import {
   GreyBoxConnectionHandlers,
   PropertiesGreyBoxConnectionsSection,
 } from './properties_grey_box_connections_section.js';
+import { GreyBoxIntentCommitter, PropertiesGreyBoxIntentSection } from './properties_grey_box_intent_section.js';
 import type { GreyBoxMergedGraph } from '../../greybox/connectivity/grey_box_graph_types.js';
 
 /**
@@ -20,6 +21,7 @@ import type { GreyBoxMergedGraph } from '../../greybox/connectivity/grey_box_gra
 export class PropertiesContextSections {
   private readonly solidBrushSection: PropertiesSolidBrushSection;
   private readonly greyBoxSection: PropertiesGreyBoxSection;
+  private readonly greyBoxIntentSection: PropertiesGreyBoxIntentSection;
   private readonly greyBoxConnectionsSection: PropertiesGreyBoxConnectionsSection;
 
   /**
@@ -43,6 +45,7 @@ export class PropertiesContextSections {
       hexToRgb,
     );
     this.greyBoxSection = new PropertiesGreyBoxSection(createSectionContainer, createSectionHeader);
+    this.greyBoxIntentSection = new PropertiesGreyBoxIntentSection(createSectionContainer, createSectionHeader);
     this.greyBoxConnectionsSection = new PropertiesGreyBoxConnectionsSection(
       createSectionContainer,
       createSectionHeader,
@@ -86,6 +89,15 @@ export class PropertiesContextSections {
   }
 
   /**
+   * Wires the callback that commits a grey box intent edit.
+   *
+   * @param committer Commit callback, or null to leave intent read-only.
+   */
+  setGreyBoxIntentCommitter(committer: GreyBoxIntentCommitter | null): void {
+    this.greyBoxIntentSection.setIntentCommitter(committer);
+  }
+
+  /**
    * Wires the undoable grey box connection actions.
    *
    * @param handlers Connection handlers, or null to disable connection editing.
@@ -113,6 +125,7 @@ export class PropertiesContextSections {
     const elements = [
       this.solidBrushSection.getElement(),
       this.greyBoxSection.getElement(),
+      this.greyBoxIntentSection.getElement(),
       this.greyBoxConnectionsSection.getElement(),
     ];
     for (const element of elements) {
@@ -129,6 +142,7 @@ export class PropertiesContextSections {
   updateFromObjects(objects: THREE.Object3D[]): void {
     this.solidBrushSection.updateFromObjects(objects);
     this.greyBoxSection.updateFromObjects(objects);
+    this.greyBoxIntentSection.updateFromObjects(objects);
     this.greyBoxConnectionsSection.updateFromObjects(objects);
   }
 
@@ -140,5 +154,6 @@ export class PropertiesContextSections {
   /** Commits edits still in flight, so panel teardown never drops typing. */
   commitPendingEdits(): void {
     this.greyBoxSection.commitPendingEdit();
+    this.greyBoxIntentSection.commitPendingEdits();
   }
 }

@@ -68,6 +68,7 @@ export type McpToolName =
   | 'rename_grey_box'
   | 'set_grey_box_description'
   | 'set_grey_box_role'
+  | 'set_grey_box_intent'
   | 'set_grey_box_transform'
   | 'delete_grey_boxes'
   | 'connect_grey_boxes'

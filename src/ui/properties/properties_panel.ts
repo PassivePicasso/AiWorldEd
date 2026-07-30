@@ -13,6 +13,7 @@ import { SolidBrushPropertyHandlers } from './properties_solid_brush_section.js'
 import { PropertiesContextSections } from './properties_context_sections.js';
 import { PropertiesMaterialSection } from './properties_material_section.js';
 import type { GreyBoxDescriptionCommitter, GreyBoxRoleCommitter } from './properties_grey_box_section.js';
+import type { GreyBoxIntentCommitter } from './properties_grey_box_intent_section.js';
 import type { GreyBoxConnectionHandlers } from './properties_grey_box_connections_section.js';
 import type { GreyBoxMergedGraph } from '../../greybox/connectivity/grey_box_graph_types.js';
 import { PropertiesColorSession } from './properties_color_session.js';
@@ -139,6 +140,15 @@ export class PropertiesPanel {
    */
   setGreyBoxRoleCommitter(committer: GreyBoxRoleCommitter | null): void {
     this.contextSections.setGreyBoxRoleCommitter(committer);
+  }
+
+  /**
+   * Wires the callback that commits a grey box intent edit as one undo entry.
+   *
+   * @param committer Commit callback, or null to clear.
+   */
+  setGreyBoxIntentCommitter(committer: GreyBoxIntentCommitter | null): void {
+    this.contextSections.setGreyBoxIntentCommitter(committer);
   }
 
   /**

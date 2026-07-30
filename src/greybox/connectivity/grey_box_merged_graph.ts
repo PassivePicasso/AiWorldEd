@@ -245,6 +245,8 @@ function buildNode(input: GreyBoxGraphInput, tree: GreyBoxContainmentTree): Grey
     name: input.volume.name,
     description: input.data.description,
     role: input.data.role,
+    sizeIntent: input.data.sizeIntent,
+    surface: { ...input.data.surface },
     center: input.volume.center.clone(),
     size: new THREE.Vector3(
       input.volume.halfExtents.x * 2,

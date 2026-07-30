@@ -19,6 +19,8 @@ import { DEFAULT_GREY_BOX_ROLE } from '../../greybox/model/grey_box_role.js';
 import { allocateGreyBoxName } from '../../greybox/model/grey_box_naming.js';
 import { setGreyBoxDescription } from '../../greybox/model/grey_box_access.js';
 import { SetGreyBoxRoleCommand } from '../../commands/greybox/set_grey_box_role_command.js';
+import { GreyBoxIntentPatch, SetGreyBoxIntentCommand } from '../../commands/greybox/set_grey_box_intent_command.js';
+import { isGreyBoxSizeIntent } from '../../greybox/model/grey_box_intent.js';
 import { greyBoxPairKey } from '../../greybox/model/grey_box_pair_key.js';
 import { computeGreyBoxLocalSize } from '../../greybox/model/grey_box_volume.js';
 import { listGreyBoxConnections } from '../../greybox/model/grey_box_connection_access.js';
@@ -26,6 +28,7 @@ import type {
   ConnectGreyBoxesArgs,
   CreateGreyBoxArgs,
   DisconnectGreyBoxesArgs,
+  SetGreyBoxIntentArgs,
   SetGreyBoxTransformArgs,
 } from './editor_api_grey_box_types.js';
 
@@ -109,6 +112,29 @@ export class EditorApiGreyBoxWrites {
     this.host.commandStack.push(SetGreyBoxRoleCommand.fromCurrent(mesh, role));
     this.afterMutation();
     return { ok: true, message: `Set role "${role}" on grey box ${greyBoxId}`, data: { greyBoxId, role } };
+  }
+
+  /**
+   * Records authoring intent: dimension fixity and surface feel.
+   *
+   * @param args Volume id with the intent fields to change.
+   * @returns Tool result.
+   */
+  setGreyBoxIntent(args: SetGreyBoxIntentArgs): McpToolResult {
+    const mesh = this.resolve(args.greyBoxId);
+    if (!mesh) return unknownGreyBox(args.greyBoxId);
+    if (args.sizeIntent !== undefined && !isGreyBoxSizeIntent(args.sizeIntent)) {
+      return { ok: false, message: `sizeIntent must be "exact" or "approximate", got "${args.sizeIntent}"` };
+    }
+    if (args.sizeIntent === undefined && args.surface === undefined) {
+      return { ok: false, message: 'Provide sizeIntent, surface, or both' };
+    }
+    const patch: GreyBoxIntentPatch = {};
+    if (args.sizeIntent !== undefined) patch.sizeIntent = args.sizeIntent;
+    if (args.surface !== undefined) patch.surface = args.surface;
+    this.host.commandStack.push(SetGreyBoxIntentCommand.fromCurrent(mesh, patch));
+    this.afterMutation();
+    return { ok: true, message: `Recorded intent on grey box ${args.greyBoxId}`, data: { greyBoxId: args.greyBoxId } };
   }
 
   /**

@@ -1,5 +1,12 @@
 import { GreyBoxExplicitConnection, cloneExplicitConnection } from './grey_box_connection.js';
 import { DEFAULT_GREY_BOX_ROLE, GreyBoxRole } from './grey_box_role.js';
+import {
+  DEFAULT_GREY_BOX_SIZE_INTENT,
+  GreyBoxSizeIntent,
+  GreyBoxSurfaceIntent,
+  cloneSurfaceIntent,
+  createEmptySurfaceIntent,
+} from './grey_box_intent.js';
 
 /**
  * Semantic payload of a grey box. The volume itself is the mesh geometry and
@@ -17,6 +24,12 @@ export interface GreyBoxData {
    * other string the user chose.
    */
   role: GreyBoxRole;
+
+  /** How firm the volume's dimensions are. */
+  sizeIntent: GreyBoxSizeIntent;
+
+  /** Intended surface treatment and mood, all fields legally empty. */
+  surface: GreyBoxSurfaceIntent;
 
   /** Connections the user stated explicitly. */
   explicitConnections: GreyBoxExplicitConnection[];
@@ -47,6 +60,8 @@ export function createGreyBoxData(
     id,
     description,
     role,
+    sizeIntent: DEFAULT_GREY_BOX_SIZE_INTENT,
+    surface: createEmptySurfaceIntent(),
     explicitConnections: [],
     suppressedDerivedConnections: [],
   };
@@ -63,6 +78,8 @@ export function cloneGreyBoxData(data: GreyBoxData): GreyBoxData {
     id: data.id,
     description: data.description,
     role: data.role,
+    sizeIntent: data.sizeIntent,
+    surface: cloneSurfaceIntent(data.surface),
     explicitConnections: data.explicitConnections.map((connection) => cloneExplicitConnection(connection)),
     suppressedDerivedConnections: data.suppressedDerivedConnections.slice(),
   };

@@ -250,6 +250,41 @@ describe('EditorApi grey box tools', () => {
     expect(ledge['depth']).toBe(1);
   });
 
+  it('reports fixity and surface intent per volume', () => {
+    const greyBoxId = createVolume(api, 'Crypt', { x: 0, y: 0, z: 0 });
+    api.invokeTool('set_grey_box_intent', {
+      greyBoxId,
+      sizeIntent: 'exact',
+      surface: { floor: 'wet stone', mood: 'oppressive' },
+    });
+    const boxes = payload(api.invokeTool('list_grey_boxes'))['greyBoxes'] as Array<Record<string, unknown>>;
+    const node = boxes.find((box) => box['greyBoxId'] === greyBoxId)!;
+    expect(node['sizeIntent']).toBe('exact');
+    expect((node['surface'] as Record<string, string>)['floor']).toBe('wet stone');
+  });
+
+  it('undoes an intent edit', () => {
+    const greyBoxId = createVolume(api, 'Crypt', { x: 0, y: 0, z: 0 });
+    api.invokeTool('set_grey_box_intent', { greyBoxId, sizeIntent: 'exact' });
+    api.invokeTool('undo');
+    const boxes = payload(api.invokeTool('list_grey_boxes'))['greyBoxes'] as Array<Record<string, unknown>>;
+    expect(boxes.find((box) => box['greyBoxId'] === greyBoxId)!['sizeIntent']).toBe('approximate');
+  });
+
+  it('rejects an unknown fixity value', () => {
+    const greyBoxId = createVolume(api, 'Crypt', { x: 0, y: 0, z: 0 });
+    const result = api.invokeTool('set_grey_box_intent', { greyBoxId, sizeIntent: 'measured' });
+    expect(result.ok).toBe(false);
+    expect(result.message).toContain('exact');
+  });
+
+  it('rejects an intent call that changes nothing', () => {
+    const greyBoxId = createVolume(api, 'Crypt', { x: 0, y: 0, z: 0 });
+    const result = api.invokeTool('set_grey_box_intent', { greyBoxId });
+    expect(result.ok).toBe(false);
+    expect(result.message).toContain('sizeIntent');
+  });
+
   it('reports grey box count in the editor context', () => {
     createVolume(api, 'Room', { x: 0, y: 0, z: 0 });
     const data = payload(api.invokeTool('get_editor_context'));

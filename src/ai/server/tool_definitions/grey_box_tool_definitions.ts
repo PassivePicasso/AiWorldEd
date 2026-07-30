@@ -72,6 +72,29 @@ export const GREY_BOX_TOOL_DEFINITIONS: McpToolDefinition[] = [
       required: ['greyBoxId', 'role'],
     },
   ),
+  tool(
+    'set_grey_box_intent',
+    'Record authoring intent on a grey box (undoable). sizeIntent "exact" means the volume is measured and you must ' +
+      'build to its dimensions; "approximate" means the shape is a suggestion you may refine. The surface fields are ' +
+      'hints for how the space should feel — "wet stone, puddles" — not texture assignments.',
+    {
+      type: 'object',
+      properties: {
+        greyBoxId: { type: 'string' },
+        sizeIntent: { type: 'string', enum: ['exact', 'approximate'] },
+        surface: {
+          type: 'object',
+          properties: {
+            floor: { type: 'string' },
+            wall: { type: 'string' },
+            ceiling: { type: 'string' },
+            mood: { type: 'string' },
+          },
+        },
+      },
+      required: ['greyBoxId'],
+    },
+  ),
   tool('set_grey_box_transform', 'Move and resize a grey box volume (undoable).', {
     type: 'object',
     properties: {

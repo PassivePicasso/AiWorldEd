@@ -48,6 +48,7 @@ import type {
   ConnectGreyBoxesArgs,
   CreateGreyBoxArgs,
   DisconnectGreyBoxesArgs,
+  SetGreyBoxIntentArgs,
   SetGreyBoxTransformArgs,
 } from './editor_api_grey_box_types.js';
 import { calculateExpression } from '../shared/mcp_calculate.js';
@@ -232,6 +233,8 @@ export class EditorApi {
         return this.greyBoxWrites.setGreyBoxDescription(stringArg(args, 'greyBoxId'), descriptionArg(args));
       case 'set_grey_box_role':
         return this.greyBoxWrites.setGreyBoxRole(stringArg(args, 'greyBoxId'), stringArg(args, 'role'));
+      case 'set_grey_box_intent':
+        return this.greyBoxWrites.setGreyBoxIntent(args as unknown as SetGreyBoxIntentArgs);
       case 'set_grey_box_transform':
         return this.greyBoxWrites.setGreyBoxTransform(args as unknown as SetGreyBoxTransformArgs);
       case 'delete_grey_boxes':
