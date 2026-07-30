@@ -35,7 +35,8 @@ function readRepoFile(relativePath: string): string {
  * @returns Unique candidate tool names.
  */
 function extractGreyBoxToolNames(text: string): string[] {
-  const matches = text.match(/`(?:list|get|create|rename|set|delete|connect|disconnect)_grey_box[a-z_]*`/g) ?? [];
+  const pattern = /`(?:list|get|create|rename|set|delete|connect|disconnect|reparent|ungroup)_grey_box[a-z_]*`/g;
+  const matches = text.match(pattern) ?? [];
   return [...new Set(matches.map((match) => match.replaceAll('`', '')))];
 }
 
@@ -128,6 +129,22 @@ describe('grey box documentation', () => {
     expect(page.toLowerCase()).toContain('weak description');
   });
 
+  it('teaches grouping as navigation rather than as layout meaning', () => {
+    const page = readRepoFile(GREY_BOX_PAGE);
+    expect(page).toContain('## Grouping: keeping a large layout navigable');
+    const lowered = page.toLowerCase();
+    expect(lowered).toContain('a folder, not a space');
+    expect(lowered).toContain('no geometry of its own');
+    expect(lowered).toContain('says nothing about the layout');
+  });
+
+  it('names the real grouping actions and what deleting a group costs', () => {
+    const page = readRepoFile(GREY_BOX_PAGE);
+    expect(page).toContain('**Edit > Group**');
+    expect(page).toContain('**Edit > Ungroup**');
+    expect(page.toLowerCase()).toContain('deleting a group deletes everything inside');
+  });
+
   it('is linked from the pages that introduce it', () => {
     for (const path of REFERRING_PAGES) {
       expect(readRepoFile(path), path).toContain('grey_boxes.md');
@@ -163,11 +180,94 @@ describe('grey box documentation', () => {
     expect(readme.toLowerCase()).toContain('suggestion you may refine');
   });
 
+  it('warns agents not to build to a group kind node', () => {
+    const readme = readRepoFile(MCP_README).toLowerCase();
+    expect(readme).toContain("never build to a group's dimensions");
+    expect(readme).toContain('takes its center and size from what it holds');
+    for (const name of ['create_grey_box_group', 'reparent_grey_boxes', 'ungroup_grey_box_groups']) {
+      expect(readme, name).toContain(name);
+    }
+  });
+
+  it('states the same warning in the tool catalog an agent reads', () => {
+    for (const name of ['create_grey_box_group', 'list_grey_boxes']) {
+      expect(toolDescription(name).toLowerCase(), name).toContain('a folder, not a space');
+    }
+  });
+
   it('references only grey box tool names that exist in the catalog', () => {
     const names = extractGreyBoxToolNames(readRepoFile(MCP_README));
     expect(names.length).toBeGreaterThanOrEqual(10);
     for (const name of names) {
       expect(findMcpTool(name), name).toBeDefined();
     }
+  });
+});
+
+/**
+ * Reads a tool description from the live catalog.
+ *
+ * @param name Tool identifier.
+ * @returns Description text.
+ */
+function toolDescription(name: string): string {
+  const definition = findMcpTool(name);
+  expect(definition, name).toBeDefined();
+  return definition?.description ?? '';
+}
+
+describe('grey box authoring guidance', () => {
+  it('states a domain-neutral test for what deserves a volume', () => {
+    const description = toolDescription('create_grey_box').toLowerCase();
+    expect(description).toContain('authoring granularity');
+    expect(description).toContain('a location and a size');
+  });
+
+  it('illustrates granularity with examples beyond level geometry', () => {
+    const description = toolDescription('create_grey_box').toLowerCase();
+    const architectural = ['bridge', 'staircase', 'ravine'];
+    const furnishing = ['kitchen island', 'filing cabinet', 'crate', 'refrigerator'];
+    expect(architectural.some((example) => description.includes(example))).toBe(true);
+    expect(furnishing.some((example) => description.includes(example))).toBe(true);
+  });
+
+  it('warns that a layout of only roots is under-boxed', () => {
+    expect(toolDescription('create_grey_box').toLowerCase()).toContain('under-boxed');
+    expect(toolDescription('get_grey_box_graph').toLowerCase()).toContain('flat list of rooms');
+  });
+
+  it('warns that an overhanging child silently detaches', () => {
+    for (const name of ['create_grey_box', 'set_grey_box_transform']) {
+      expect(toolDescription(name), name).toContain('becomes a root instead of a child');
+    }
+  });
+
+  it('stops connections being used in place of walkable geometry', () => {
+    const description = toolDescription('connect_grey_boxes').toLowerCase();
+    expect(description).toContain('not a substitute for geometry');
+    expect(description).toContain('no moving-brush support');
+  });
+
+  it('frames the graph report as informational rather than a lint', () => {
+    expect(toolDescription('get_grey_box_graph').toLowerCase()).toContain('informational, not a lint');
+  });
+
+  it('gives agents an authoring section in the MCP overview', () => {
+    const readme = readRepoFile(MCP_README);
+    expect(readme).toContain('### Authoring a layout yourself');
+    expect(readme.toLowerCase()).toContain('box out contents, not just rooms');
+  });
+
+  it('treats a spanning feature as a missing enclosing area', () => {
+    const description = toolDescription('create_grey_box').toLowerCase();
+    expect(description).toContain('the enclosing area is missing');
+    expect(description).toContain('design statement, not bookkeeping');
+    expect(readRepoFile(GREY_BOX_PAGE).toLowerCase()).toContain('enclosing area is missing');
+  });
+
+  it('explains why derived containment beats an authored parent', () => {
+    const page = readRepoFile(GREY_BOX_PAGE).toLowerCase().replace(/\s+/g, ' ');
+    expect(page).toContain('containment is derived from the volumes');
+    expect(page).toContain('cannot answer that');
   });
 });

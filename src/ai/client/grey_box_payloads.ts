@@ -8,6 +8,12 @@ import { GreyBoxOccupancyPayload, readGreyBoxOccupancy } from './grey_box_occupa
 /** Serialized grey box node for MCP payloads. */
 export interface GreyBoxNodePayload {
   greyBoxId: string;
+  /**
+   * 'volume' is an authored planning volume. 'group' organizes volumes for
+   * navigation and takes its center and size from what it holds, so do not
+   * build to a group's dimensions.
+   */
+  kind: 'volume' | 'group';
   name: string;
   description: string;
   /** Gameplay function of the volume. */
@@ -98,6 +104,7 @@ export function serializeGreyBoxNode(
   const built = readGreyBoxOccupancy(occupancy, node.id);
   return {
     greyBoxId: node.id,
+    kind: node.kind,
     name: node.name,
     description: node.description,
     role: node.role,

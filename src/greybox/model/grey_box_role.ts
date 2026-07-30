@@ -33,6 +33,12 @@ export const KNOWN_GREY_BOX_ROLES = [
 export const DEFAULT_GREY_BOX_ROLE: GreyBoxRole = 'room';
 
 /**
+ * Role a grey box group takes when none was stated. A group organizes volumes
+ * rather than standing for a space, so it claims no gameplay category.
+ */
+export const DEFAULT_GREY_BOX_GROUP_ROLE: GreyBoxRole = 'group';
+
+/**
  * Returns whether a role is one the editor has colours and vocabulary for.
  *
  * @param role Role to test.

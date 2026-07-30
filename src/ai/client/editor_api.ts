@@ -4,6 +4,7 @@ import { EditorApiBuilders } from './editor_api_builders.js';
 import { EditorApiCsgQuery } from './editor_api_csg_query.js';
 import { EditorApiFind } from './editor_api_find.js';
 import { EditorApiHierarchy } from './editor_api_hierarchy.js';
+import { EditorApiGreyBoxGroups } from './editor_api_grey_box_groups.js';
 import { EditorApiGreyBoxReads } from './editor_api_grey_box_reads.js';
 import { EditorApiGreyBoxWrites } from './editor_api_grey_box_writes.js';
 import { EditorApiSolidReads } from './editor_api_solid_reads.js';
@@ -47,7 +48,9 @@ import type {
 import type {
   ConnectGreyBoxesArgs,
   CreateGreyBoxArgs,
+  CreateGreyBoxGroupArgs,
   DisconnectGreyBoxesArgs,
+  ReparentGreyBoxesArgs,
   SetGreyBoxIntentArgs,
   SetGreyBoxTransformArgs,
 } from './editor_api_grey_box_types.js';
@@ -70,6 +73,7 @@ export class EditorApi {
   private readonly hierarchy: EditorApiHierarchy;
   private readonly greyBoxReads: EditorApiGreyBoxReads;
   private readonly greyBoxWrites: EditorApiGreyBoxWrites;
+  private readonly greyBoxGroups: EditorApiGreyBoxGroups;
 
   /**
    * Creates an editor API bound to live editor systems.
@@ -88,6 +92,7 @@ export class EditorApi {
     this.hierarchy = new EditorApiHierarchy(host);
     this.greyBoxReads = new EditorApiGreyBoxReads(host);
     this.greyBoxWrites = new EditorApiGreyBoxWrites(host);
+    this.greyBoxGroups = new EditorApiGreyBoxGroups(host);
   }
 
   /**
@@ -227,6 +232,12 @@ export class EditorApi {
         return this.greyBoxReads.getGreyBoxGraph();
       case 'create_grey_box':
         return this.greyBoxWrites.createGreyBox(args as unknown as CreateGreyBoxArgs);
+      case 'create_grey_box_group':
+        return this.greyBoxGroups.createGreyBoxGroup(args as unknown as CreateGreyBoxGroupArgs);
+      case 'reparent_grey_boxes':
+        return this.greyBoxGroups.reparentGreyBoxes(args as unknown as ReparentGreyBoxesArgs);
+      case 'ungroup_grey_box_groups':
+        return this.greyBoxGroups.ungroupGreyBoxGroups(stringArrayArg(args, 'greyBoxIds'));
       case 'rename_grey_box':
         return this.greyBoxWrites.renameGreyBox(stringArg(args, 'greyBoxId'), stringArg(args, 'name'));
       case 'set_grey_box_description':

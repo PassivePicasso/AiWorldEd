@@ -2,7 +2,9 @@ import * as THREE from 'three';
 import type { EditorApiHost } from './editor_api_host.js';
 import type { McpToolResult } from '../shared/mcp_protocol_types.js';
 import { CompositeCommand } from '../../commands/composite_command.js';
+import type { UndoCommand } from '../../commands/undo_command.js';
 import { CreateGreyBoxCommand } from '../../commands/greybox/create_grey_box_command.js';
+import { DeleteGreyBoxGroupCommand } from '../../commands/greybox/delete_grey_box_group_command.js';
 import { DeleteObjectCommand, DeleteSnapshot } from '../../commands/object/delete_object_command.js';
 import { PruneGreyBoxReferencesCommand } from '../../commands/greybox/prune_grey_box_references_command.js';
 import { RenameCommand } from '../../commands/object/rename_command.js';
@@ -15,6 +17,7 @@ import {
 import { BoundsResizeCommand } from '../../commands/transform/bounds_resize_command.js';
 import { GreyBoxRegistry } from '../../greybox/model/grey_box_registry.js';
 import { createGreyBoxMesh, DEFAULT_GREY_BOX_SIZE } from '../../greybox/model/grey_box_factory.js';
+import { isGreyBoxGroup } from '../../greybox/model/grey_box_group.js';
 import { DEFAULT_GREY_BOX_ROLE } from '../../greybox/model/grey_box_role.js';
 import { allocateGreyBoxName } from '../../greybox/model/grey_box_naming.js';
 import { setGreyBoxDescription } from '../../greybox/model/grey_box_access.js';
@@ -55,12 +58,14 @@ export class EditorApiGreyBoxWrites {
    * @returns Tool result with the new volume id.
    */
   createGreyBox(args: CreateGreyBoxArgs): McpToolResult {
+    const parent = this.resolveParent(args.parentGreyBoxId);
+    if (!parent) return unknownGreyBox(args.parentGreyBoxId ?? '');
     const size = args.size ?? { x: DEFAULT_GREY_BOX_SIZE, y: DEFAULT_GREY_BOX_SIZE, z: DEFAULT_GREY_BOX_SIZE };
     const name = args.name && args.name.length > 0 ? args.name : allocateGreyBoxName(this.host.worldObject);
     const mesh = createGreyBoxMesh(name, size.x, size.y, size.z, args.role ?? DEFAULT_GREY_BOX_ROLE);
-    if (args.center) mesh.position.set(args.center.x, args.center.y, args.center.z);
+    if (args.center) mesh.position.copy(toParentLocal(parent, args.center));
     if (args.description) setGreyBoxDescription(mesh, args.description);
-    this.host.commandStack.push(new CreateGreyBoxCommand(mesh, this.host.worldObject));
+    this.host.commandStack.push(new CreateGreyBoxCommand(mesh, parent));
     this.afterMutation();
     return {
       ok: true,
@@ -146,9 +151,7 @@ export class EditorApiGreyBoxWrites {
   setGreyBoxTransform(args: SetGreyBoxTransformArgs): McpToolResult {
     const mesh = this.resolve(args.greyBoxId);
     if (!mesh) return unknownGreyBox(args.greyBoxId);
-    const finalPosition = args.center
-      ? new THREE.Vector3(args.center.x, args.center.y, args.center.z)
-      : mesh.position.clone();
+    const finalPosition = args.center && mesh.parent ? toParentLocal(mesh.parent, args.center) : mesh.position.clone();
     const finalScale = args.size ? this.scaleForSize(mesh, args.size) : mesh.scale.clone();
     this.host.commandStack.push(
       new BoundsResizeCommand([
@@ -166,25 +169,37 @@ export class EditorApiGreyBoxWrites {
   }
 
   /**
-   * Deletes grey boxes and prunes authored links pointing at them.
+   * Deletes grey boxes and prunes authored links pointing at them. Deleting a
+   * group takes everything inside it; ungroup first to keep the contents.
    *
-   * @param greyBoxIds Volumes to delete.
+   * @param greyBoxIds Volumes or groups to delete.
    * @returns Tool result with the deleted count.
    */
   deleteGreyBoxes(greyBoxIds: string[]): McpToolResult {
-    const meshes = greyBoxIds.map((id) => this.resolve(id));
-    const missing = greyBoxIds.filter((_id, index) => meshes[index] === null);
+    const resolved = greyBoxIds.map((id) => GreyBoxRegistry.findById(this.host.worldObject, id));
+    const missing = greyBoxIds.filter((_id, index) => resolved[index] === null);
     if (missing.length > 0) return { ok: false, message: `Unknown greyBoxId: ${missing.join(', ')}` };
-    const found = meshes.filter((mesh): mesh is THREE.Mesh => mesh !== null);
-    const snapshots = found.map((mesh) => buildDeleteSnapshot(mesh));
+    const found = resolved.filter((object): object is THREE.Object3D => object !== null);
     this.host.commandStack.push(
       new CompositeCommand([
-        new DeleteObjectCommand(snapshots),
-        new PruneGreyBoxReferencesCommand(this.host.worldObject, greyBoxIds),
+        ...found.map((object) => this.buildDeleteCommand(object)),
+        new PruneGreyBoxReferencesCommand(this.host.worldObject, collectRemovedIds(found)),
       ]),
     );
     this.afterMutation();
-    return { ok: true, message: `Deleted ${found.length} grey box volume(s)`, data: { deleted: found.length } };
+    return { ok: true, message: `Deleted ${found.length} grey box(es)`, data: { deleted: found.length } };
+  }
+
+  /**
+   * Builds the delete command matching what a grey box is: a group detaches its
+   * whole subtree, a volume takes the editor's mesh delete path.
+   *
+   * @param object Grey box volume or group being removed.
+   * @returns Undoable delete command.
+   */
+  private buildDeleteCommand(object: THREE.Object3D): UndoCommand {
+    if (isGreyBoxGroup(object)) return new DeleteGreyBoxGroupCommand(object);
+    return new DeleteObjectCommand([buildDeleteSnapshot(object as THREE.Mesh)]);
   }
 
   /**
@@ -277,6 +292,18 @@ export class EditorApiGreyBoxWrites {
   }
 
   /**
+   * Resolves the parent a new volume is created under, defaulting to the world
+   * root. A grey box group or an enclosing volume are both legal parents.
+   *
+   * @param parentGreyBoxId Grey box to nest under, or undefined for the world.
+   * @returns Parent object, or null when the id does not resolve.
+   */
+  private resolveParent(parentGreyBoxId: string | undefined): THREE.Object3D | null {
+    if (!parentGreyBoxId) return this.host.worldObject;
+    return GreyBoxRegistry.findById(this.host.worldObject, parentGreyBoxId);
+  }
+
+  /**
    * Resolves a grey box id to its mesh.
    *
    * @param greyBoxId Id to resolve.
@@ -303,6 +330,38 @@ export class EditorApiGreyBoxWrites {
  */
 function unknownGreyBox(greyBoxId: string): McpToolResult {
   return { ok: false, message: `Unknown greyBoxId: ${greyBoxId}` };
+}
+
+/**
+ * Collects the ids of everything a delete removes, including the volumes inside
+ * a deleted group, so no authored link is left pointing at a volume that has
+ * left the scene.
+ *
+ * @param removed Grey boxes being deleted.
+ * @returns Grey box ids removed by the operation.
+ */
+function collectRemovedIds(removed: readonly THREE.Object3D[]): string[] {
+  const ids = new Set<string>();
+  for (const object of removed) {
+    for (const inSubtree of GreyBoxRegistry.collectUnder(object)) {
+      const data = GreyBoxRegistry.tryGet(inSubtree);
+      if (data) ids.add(data.id);
+    }
+  }
+  return [...ids];
+}
+
+/**
+ * Converts a world center into the parent's local space, so a volume placed
+ * inside a moved group still lands where the caller asked.
+ *
+ * @param parent Parent that will hold the volume.
+ * @param center World-space center.
+ * @returns Position in the parent's local space.
+ */
+function toParentLocal(parent: THREE.Object3D, center: { x: number; y: number; z: number }): THREE.Vector3 {
+  parent.updateWorldMatrix(true, false);
+  return parent.worldToLocal(new THREE.Vector3(center.x, center.y, center.z));
 }
 
 /**

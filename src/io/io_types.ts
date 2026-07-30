@@ -79,6 +79,12 @@ export interface ObjectEntry {
    * what identifies the entry as a grey box on load.
    */
   greyBox?: SerializedGreyBox;
+  /**
+   * Layout payload present only on grey box groups. Same shape as a volume's: a
+   * group carries the identity and links, and takes its extent from its
+   * contents rather than from geometry.
+   */
+  greyBoxGroup?: SerializedGreyBox;
   /** Optional solid-model brush tree for CSG solid meshes. */
   solidModel?: {
     brushes: Array<{

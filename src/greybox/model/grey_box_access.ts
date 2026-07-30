@@ -6,20 +6,21 @@ import { DEFAULT_GREY_BOX_ROLE, GreyBoxRole, normalizeGreyBoxRole } from './grey
 import { GreyBoxSizeIntent, GreyBoxSurfaceField, GreyBoxSurfaceIntent, cloneSurfaceIntent } from './grey_box_intent.js';
 
 /**
- * Turns an existing mesh into a registered grey box with a fresh id.
+ * Turns an existing object into a registered grey box with a fresh id. Works
+ * for a volume mesh and for a group that organizes volumes.
  *
- * @param mesh Mesh that becomes the grey box volume.
+ * @param object Mesh that becomes a volume, or group that organizes them.
  * @param description Initial description; pass an empty string when unwritten.
  * @param role Gameplay function of the volume.
- * @returns Payload registered for the mesh.
+ * @returns Payload registered for the object.
  */
 export function attachGreyBoxData(
-  mesh: THREE.Mesh,
+  object: THREE.Object3D,
   description: string,
   role: GreyBoxRole = DEFAULT_GREY_BOX_ROLE,
 ): GreyBoxData {
   const data = createGreyBoxData(allocateGreyBoxId(), description, normalizeGreyBoxRole(role));
-  GreyBoxRegistry.register(mesh, data);
+  GreyBoxRegistry.register(object, data);
   return data;
 }
 

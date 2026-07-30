@@ -3,7 +3,8 @@ import type { EditorApiHost } from './editor_api_host.js';
 import type { McpToolResult } from '../shared/mcp_protocol_types.js';
 import { GreyBoxRegistry } from '../../greybox/model/grey_box_registry.js';
 import { buildGreyBoxSceneGraph } from '../../greybox/connectivity/grey_box_scene_graph.js';
-import type { GreyBoxMergedGraph } from '../../greybox/connectivity/grey_box_graph_types.js';
+import { computeGreyBoxGroupBounds } from '../../greybox/connectivity/grey_box_group_volume.js';
+import type { GreyBoxMergedGraph, GreyBoxNodeKind } from '../../greybox/connectivity/grey_box_graph_types.js';
 import { computeGreyBoxWorldBounds, computeGreyBoxWorldSize } from '../../greybox/model/grey_box_volume.js';
 import { serializeGreyBoxGraph, serializeGreyBoxNode } from './grey_box_payloads.js';
 import { GreyBoxOccupancyPayload, computeGreyBoxOccupancy, readGreyBoxOccupancy } from './grey_box_occupancy.js';
@@ -34,12 +35,17 @@ export class EditorApiGreyBoxReads {
   listGreyBoxes(): McpToolResult {
     const graph = buildGreyBoxSceneGraph(this.host.worldObject);
     const occupancy = this.occupancyFor(graph);
+    const groupCount = graph.nodes.filter((node) => node.kind === 'group').length;
+    const volumeCount = graph.nodes.length - groupCount;
     return {
       ok: true,
-      message: `${graph.nodes.length} grey box planning volume(s), ${graph.tree.rootIds.length} outermost`,
+      message:
+        `${volumeCount} grey box planning volume(s) in ${groupCount} group(s), ` +
+        `${graph.tree.rootIds.length} outermost`,
       data: {
         greyBoxes: graph.nodes.map((node) => serializeGreyBoxNode(node, graph, occupancy)),
-        count: graph.nodes.length,
+        count: volumeCount,
+        groupCount,
       },
     };
   }
@@ -52,8 +58,6 @@ export class EditorApiGreyBoxReads {
    * @returns Tool result with the volume detail.
    */
   getGreyBox(greyBoxId: string): McpToolResult {
-    const mesh = this.findGreyBoxMesh(greyBoxId);
-    if (!mesh) return { ok: false, message: `Unknown greyBoxId: ${greyBoxId}` };
     const graph = buildGreyBoxSceneGraph(this.host.worldObject);
     const node = graph.nodes.find((candidate) => candidate.id === greyBoxId);
     if (!node) return { ok: false, message: `Unknown greyBoxId: ${greyBoxId}` };
@@ -61,15 +65,35 @@ export class EditorApiGreyBoxReads {
     const built = readGreyBoxOccupancy(occupancy, greyBoxId);
     return {
       ok: true,
-      message: describeVolume(node.name, built),
+      message: describeVolume(node.kind, node.name, built),
       data: {
         greyBox: serializeGreyBoxNode(node, graph, occupancy),
-        bounds: boundsPayload(computeGreyBoxWorldBounds(mesh)),
-        size: vectorPayload(computeGreyBoxWorldSize(mesh)),
+        ...this.extentFor(greyBoxId),
         connections: serializeGreyBoxGraph(graph, occupancy, greyBoxId).edges,
         occupancy: built,
       },
     };
+  }
+
+  /**
+   * Reports a grey box's world extent. A volume measures its own geometry; a
+   * group has none, so it reports the bounds of everything it holds and an
+   * empty group reports nothing.
+   *
+   * @param greyBoxId Grey box to measure.
+   * @returns Bounds and size payload fields.
+   */
+  private extentFor(greyBoxId: string): { bounds: BoundsPayload | null; size: VectorPayload | null } {
+    const object = GreyBoxRegistry.findById(this.host.worldObject, greyBoxId);
+    if (object instanceof THREE.Mesh) {
+      return {
+        bounds: boundsPayload(computeGreyBoxWorldBounds(object)),
+        size: vectorPayload(computeGreyBoxWorldSize(object)),
+      };
+    }
+    const bounds = object ? computeGreyBoxGroupBounds(object) : null;
+    if (!bounds) return { bounds: null, size: null };
+    return { bounds: boundsPayload(bounds), size: vectorPayload(bounds.getSize(new THREE.Vector3())) };
   }
 
   /**
@@ -99,30 +123,33 @@ export class EditorApiGreyBoxReads {
   private occupancyFor(graph: GreyBoxMergedGraph): Map<string, GreyBoxOccupancyPayload> {
     return computeGreyBoxOccupancy(this.host.worldObject, graph);
   }
+}
 
-  /**
-   * Resolves a grey box id to its mesh.
-   *
-   * @param greyBoxId Id to resolve.
-   * @returns Grey box mesh, or null when absent.
-   */
-  private findGreyBoxMesh(greyBoxId: string): THREE.Mesh | null {
-    const found = GreyBoxRegistry.findById(this.host.worldObject, greyBoxId);
-    if (!found || !(found instanceof THREE.Mesh)) return null;
-    return found;
-  }
+/** World bounds as an MCP payload. */
+interface BoundsPayload {
+  min: VectorPayload;
+  max: VectorPayload;
+}
+
+/** A vector as an MCP payload. */
+interface VectorPayload {
+  x: number;
+  y: number;
+  z: number;
 }
 
 /**
- * Builds a one-line summary of what a volume holds.
+ * Builds a one-line summary of what a grey box holds.
  *
- * @param name Volume name.
- * @param built Occupancy for the volume.
+ * @param kind Whether this is a volume or a group.
+ * @param name Grey box name.
+ * @param built Occupancy for the grey box.
  * @returns Human-readable summary.
  */
-function describeVolume(name: string, built: GreyBoxOccupancyPayload): string {
-  if (built.empty) return `Grey box "${name}" is empty and ready to build in`;
-  return `Grey box "${name}" holds ${built.subtreeBrushCount} brush(es) including nested volumes`;
+function describeVolume(kind: GreyBoxNodeKind, name: string, built: GreyBoxOccupancyPayload): string {
+  const label = kind === 'group' ? 'Grey box group' : 'Grey box';
+  if (built.empty) return `${label} "${name}" is empty and ready to build in`;
+  return `${label} "${name}" holds ${built.subtreeBrushCount} brush(es) including nested volumes`;
 }
 
 /**
@@ -131,10 +158,7 @@ function describeVolume(name: string, built: GreyBoxOccupancyPayload): string {
  * @param bounds World bounds.
  * @returns Min and max corners.
  */
-function boundsPayload(bounds: THREE.Box3): {
-  min: { x: number; y: number; z: number };
-  max: { x: number; y: number; z: number };
-} {
+function boundsPayload(bounds: THREE.Box3): BoundsPayload {
   return { min: vectorPayload(bounds.min), max: vectorPayload(bounds.max) };
 }
 
@@ -144,6 +168,6 @@ function boundsPayload(bounds: THREE.Box3): {
  * @param vector Source vector.
  * @returns Plain coordinate object.
  */
-function vectorPayload(vector: THREE.Vector3): { x: number; y: number; z: number } {
+function vectorPayload(vector: THREE.Vector3): VectorPayload {
   return { x: vector.x, y: vector.y, z: vector.z };
 }

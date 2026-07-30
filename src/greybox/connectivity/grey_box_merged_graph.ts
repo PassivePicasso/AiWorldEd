@@ -16,10 +16,13 @@ import {
   GreyBoxGraphNode,
   GreyBoxGraphProblem,
   GreyBoxMergedGraph,
+  GreyBoxNodeKind,
 } from './grey_box_graph_types.js';
 
 /** A volume paired with its layout payload, the input to merging. */
 export interface GreyBoxGraphInput {
+  /** Whether this is an authored volume or a group organizing volumes. */
+  kind: GreyBoxNodeKind;
   volume: GreyBoxOrientedVolume;
   data: GreyBoxData;
   /** Grey box id of the nearest grey box ancestor in the scene, or null. */
@@ -57,9 +60,12 @@ export function mergeGreyBoxGraph(inputs: GreyBoxGraphInput[], derived: GreyBoxD
 }
 
 /**
- * Builds the containment hierarchy from geometry plus authored parenting.
+ * Builds the containment hierarchy from geometry plus authored parenting. A
+ * group's place is always authored: its bounds are the union of its children,
+ * so a geometric guess would only ever name one of the volumes it already holds
+ * and close a cycle.
  *
- * @param inputs Volumes with their authored parents.
+ * @param inputs Volumes and groups with their authored parents.
  * @param derived Relations carrying containment records.
  * @returns Containment tree.
  */
@@ -69,7 +75,7 @@ function buildTree(inputs: GreyBoxGraphInput[], derived: GreyBoxDerivedRelation[
   const claims: GreyBoxParentClaims[] = inputs.map((input) => ({
     id: input.data.id,
     authoredParentId: input.authoredParentId,
-    derivedParentId: pickDerivedParent(input.data.id, containments, sizeById),
+    derivedParentId: input.kind === 'group' ? null : pickDerivedParent(input.data.id, containments, sizeById),
   }));
   return buildGreyBoxContainmentTree(claims);
 }
@@ -242,6 +248,7 @@ function buildNode(input: GreyBoxGraphInput, tree: GreyBoxContainmentTree): Grey
   const node = tree.nodes.get(input.data.id);
   return {
     id: input.data.id,
+    kind: input.kind,
     name: input.volume.name,
     description: input.data.description,
     role: input.data.role,

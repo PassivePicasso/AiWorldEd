@@ -122,6 +122,14 @@ export interface HierarchyNodeDto {
   children: HierarchyNodeDto[];
 }
 
+/** Grey box hierarchy node, mirroring how the outliner nests grey boxes. */
+export interface GreyBoxHierarchyNodeDto {
+  greyBoxId: string;
+  name: string;
+  kind: 'grey_box' | 'grey_box_group';
+  children: GreyBoxHierarchyNodeDto[];
+}
+
 /** Arguments accepted by add_box_brush. */
 export interface AddBoxBrushArgs {
   modelId: string;

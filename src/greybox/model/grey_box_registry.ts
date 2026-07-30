@@ -3,7 +3,7 @@ import { GreyBoxData, cloneGreyBoxData } from './grey_box_data.js';
 import { isGreyBox, stampGreyBoxMarker } from './grey_box_keys.js';
 
 /**
- * Owns grey box payloads keyed by their scene mesh. Data is kept off userData
+ * Owns grey box payloads keyed by their scene object. Data is kept off userData
  * so Object3D.clone() cannot alias two volumes onto one payload; a cloned grey
  * box arrives marked but unregistered and fails loudly until it is registered.
  */
@@ -11,14 +11,16 @@ export class GreyBoxRegistry {
   private static readonly registry = new WeakMap<THREE.Object3D, GreyBoxData>();
 
   /**
-   * Marks a mesh as a grey box and associates its payload in one step.
+   * Marks an object as a grey box and associates its payload in one step.
+   * Volumes and the groups that organize them share one registry, so an id
+   * resolves to either without the caller knowing which it holds.
    *
-   * @param mesh Mesh that becomes a grey box volume.
+   * @param object Mesh that becomes a volume, or group that organizes them.
    * @param data Payload owned by the registry from this point on.
    */
-  static register(mesh: THREE.Mesh, data: GreyBoxData): void {
-    stampGreyBoxMarker(mesh);
-    GreyBoxRegistry.registry.set(mesh, data);
+  static register(object: THREE.Object3D, data: GreyBoxData): void {
+    stampGreyBoxMarker(object);
+    GreyBoxRegistry.registry.set(object, data);
   }
 
   /**

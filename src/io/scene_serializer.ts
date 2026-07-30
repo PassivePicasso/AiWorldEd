@@ -6,14 +6,16 @@ import { resolveGeometrySourceParams, resolveGeometrySourceType } from '../textu
 import { SolidModel } from '../solid/model/solid_model.js';
 import { SolidModelCodec } from '../solid/io/solid_model_codec.js';
 import { isGreyBox } from '../greybox/model/grey_box_keys.js';
+import { isGreyBoxGroup } from '../greybox/model/grey_box_group.js';
 import { GreyBoxRegistry } from '../greybox/model/grey_box_registry.js';
 import { GreyBoxCodec } from '../greybox/io/grey_box_codec.js';
 
 /**
  * Schema version for serialized scene files. Version 3 added face texture maps
- * and optional buffer UV channels; version 4 adds grey box planning volumes.
+ * and optional buffer UV channels; version 4 added grey box planning volumes;
+ * version 5 adds grey box groups and nested volumes.
  */
-export const SCENE_SCHEMA_VERSION = 4;
+export const SCENE_SCHEMA_VERSION = 5;
 
 /**
  * Serializes a Three.js scene graph into a JSON-compatible structure. Walks the
@@ -56,7 +58,7 @@ export class SceneSerializer {
       if (SolidModel.isSolidModelObject(child)) {
         return;
       }
-      if (child instanceof THREE.Group) {
+      if (child instanceof THREE.Group || isGreyBox(child)) {
         this.collectEntries(child, entries);
       }
     });
@@ -91,6 +93,7 @@ export class SceneSerializer {
     if (child instanceof THREE.Group) {
       const groupEntry = this.enrichWithGroupData(baseEntry);
       this.attachSolidModelData(child, groupEntry);
+      this.attachGreyBoxGroupData(child, groupEntry);
       return groupEntry;
     }
     return baseEntry;
@@ -215,6 +218,18 @@ export class SceneSerializer {
   private attachGreyBoxData(mesh: THREE.Mesh, entry: ObjectEntry): void {
     if (!isGreyBox(mesh)) return;
     entry.greyBox = GreyBoxCodec.encode(GreyBoxRegistry.get(mesh));
+  }
+
+  /**
+   * Serializes the layout payload of a grey box group. Its contents ride on the
+   * ordinary child entries, so only the group's own identity is written here.
+   *
+   * @param group Source group.
+   * @param entry Entry to enrich.
+   */
+  private attachGreyBoxGroupData(group: THREE.Object3D, entry: ObjectEntry): void {
+    if (!isGreyBoxGroup(group)) return;
+    entry.greyBoxGroup = GreyBoxCodec.encode(GreyBoxRegistry.get(group));
   }
 
   /**

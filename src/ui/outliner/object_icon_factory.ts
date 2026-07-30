@@ -5,6 +5,7 @@ import { SolidBrushVisual } from '../../solid/model/solid_brush_visual.js';
 import { getSolidGroupOperation, isSolidCsgGroup } from '../../solid/model/solid_group.js';
 import { SolidOperation } from '../../solid/types/solid_operation.js';
 import { isGreyBox } from '../../greybox/model/grey_box_keys.js';
+import { isGreyBoxGroup } from '../../greybox/model/grey_box_group.js';
 import { GreyBoxRegistry } from '../../greybox/model/grey_box_registry.js';
 import { GreyBoxEdgeMaterials } from '../../greybox/model/grey_box_edge_materials.js';
 import { DEFAULT_GREY_BOX_ROLE } from '../../greybox/model/grey_box_role.js';
@@ -54,6 +55,9 @@ const SOLID_INTERSECTING_COLOR = '#2980b9';
 /** Yellow folder color for ordinary and additive CSG groups. */
 const FOLDER_COLOR = '#e67e22';
 
+/** Neutral slate for grey box groups, which carry no gameplay role. */
+const GREY_BOX_GROUP_COLOR = '#8fa3b0';
+
 /**
  * Maps Three.js object types to their corresponding icons for the outliner.
  * Provides consistent visual identification of object categories.
@@ -66,6 +70,9 @@ export class ObjectIconFactory {
    * @returns The icon configuration with character and color.
    */
   static getIcon(obj: THREE.Object3D): ObjectIcon {
+    if (isGreyBoxGroup(obj)) {
+      return this.getGreyBoxGroupIcon();
+    }
     if (isGreyBox(obj)) {
       return this.getGreyBoxIcon(obj);
     }
@@ -173,6 +180,16 @@ export class ObjectIconFactory {
       badgeCssDot: true,
       badgeColor: this.colorForSolidOperation(operation),
     };
+  }
+
+  /**
+   * Returns the icon for a grey box group: a stacked box reading as a folder of
+   * volumes, in one neutral colour because a group has no gameplay role.
+   *
+   * @returns The grey box group icon configuration.
+   */
+  private static getGreyBoxGroupIcon(): ObjectIcon {
+    return { character: '▤', color: GREY_BOX_GROUP_COLOR };
   }
 
   /**

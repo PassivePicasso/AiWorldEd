@@ -1,8 +1,9 @@
 import * as THREE from 'three';
 
 /**
- * UserData key marking a mesh as a grey box planning volume. Grey boxes are
- * layout aids: they never compile into solid geometry and never export.
+ * UserData key marking an object as part of the grey box layout: a planning
+ * volume, or a group that organizes them. Grey boxes are layout aids: they
+ * never compile into solid geometry and never export.
  */
 export const GREY_BOX_USERDATA_KEY = 'isGreyBox';
 
@@ -17,14 +18,13 @@ export function isGreyBox(object: THREE.Object3D): boolean {
 }
 
 /**
- * Stamps the grey box marker onto a mesh. The marker alone does not make a
- * usable grey box; register its data with GreyBoxRegistry in the same
- * operation.
+ * Stamps the grey box marker. The marker alone does not make a usable grey box;
+ * register its data with GreyBoxRegistry in the same operation.
  *
- * @param mesh Mesh that becomes a grey box volume.
+ * @param object Mesh that becomes a volume, or group that organizes them.
  */
-export function stampGreyBoxMarker(mesh: THREE.Mesh): void {
-  mesh.userData[GREY_BOX_USERDATA_KEY] = true;
+export function stampGreyBoxMarker(object: THREE.Object3D): void {
+  object.userData[GREY_BOX_USERDATA_KEY] = true;
 }
 
 /**

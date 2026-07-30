@@ -28,7 +28,13 @@ sits inside another is a **feature of that space**, not a separate room:
 | A bridge inside the ravine | the bridge spans that ravine           |
 | A ledge inside the hall    | a ledge along one of the hall's walls  |
 | A pillar inside the hall   | a pillar standing in the hall          |
+| An island inside a kitchen | the counter block that kitchen is      |
+| A desk inside an office    | where that desk sits in the room       |
 | Two halls sharing a wall   | two spaces with a doorway between them |
+
+Nothing about this is specific to level geometry. A scene is a space and the
+things in it, whether those things are bridges and ravines or couches, safes,
+bookcases, and refrigerators. If it has a place and a size, it can be a volume.
 
 The editor works this out for you. It reports three kinds of relation, and a pair
 can hold more than one:
@@ -60,6 +66,60 @@ it belongs to — **parent one grey box under another in the Outliner** and that
 statement wins. An authored parent also works where geometry implies nothing at
 all, which is how you attach a volume to a space it does not physically sit
 inside.
+
+A volume that overhangs its parent does not warn you — it simply becomes a root of
+its own. If something you meant to nest is showing at the top level, either resize
+it to fit, add an enclosing volume that contains both it and its neighbours, or
+parent it explicitly in the Outliner.
+
+Often the better answer is neither: a feature that will not sit inside anything is
+usually telling you the **enclosing area is missing**. A bridge landing on both
+banks belongs to the canyon, not to either bank, so block out the canyon and nest
+the banks, the water, and the bridge inside it. That volume is a design statement —
+it says these parts are one space — and a flat row of siblings cannot say it.
+
+Prefer this to an authored parent wherever it is available. Because containment is
+derived from the volumes, a parent genuinely contains its children, so it can stand
+for an area something is _inside of_ — the question a trigger zone, a region label,
+or an ambience zone all ask. An authored parent that does not physically contain
+its children cannot answer that.
+
+> An agent working over MCP can state a parent too, with `reparent_grey_boxes`.
+> Prefer geometry where geometry can say it: nesting a volume that really sits
+> inside another pushes toward naming real areas, which is usually the better
+> layout anyway.
+
+## Grouping: keeping a large layout navigable
+
+A thorough blockout runs to dozens of volumes, and a flat list of them is no
+easier to read than the level was to imagine. A **grey box group** collects
+related volumes under one collapsible row — a floor, a wing, a district.
+
+Select the volumes and press the group shortcut, or use **Edit > Group**. When
+every selected object is a grey box, the result is a grey box group rather than
+an ordinary scene group; a mixed selection makes a plain group instead, so
+nothing is quietly pulled into the layout. **Edit > Ungroup** dissolves a group
+and leaves its volumes where they were.
+
+A group is a folder, not a space:
+
+- It holds volumes and other groups, so a wing can sit inside a site.
+- It has **no geometry of its own**. Its reported center and size are simply the
+  bounds of everything it holds, which is why you never build to a group's
+  dimensions.
+- **Grouping says nothing about the layout.** It is an organizing choice. Nesting
+  a feature inside the volume that really contains it is a design statement;
+  putting two volumes in the same folder is not, and one is no substitute for the
+  other.
+
+Because a group is a grey box ancestor, the volumes inside it read it as their
+authored parent, and it appears in the layout graph as a node of kind `group`
+with those volumes as its children. Deleting a group deletes everything inside
+it — ungroup first if you only meant to lose the folder.
+
+Over MCP the same operations are `create_grey_box_group`,
+`reparent_grey_boxes`, and `ungroup_grey_box_groups`, and `create_grey_box`
+takes a `parentGreyBoxId`.
 
 ## Create a grey box
 
@@ -150,6 +210,16 @@ Geometry cannot express every route. Select exactly two volumes and press
 Each link carries a free-form label, a note, and a direction. One-way links are
 meaningful and reported as such.
 
+A connection is not a substitute for a volume. Anything the player physically walks
+on — a bridge, catwalk, stair, or ramp — is geometry, and belongs in the layout as
+a nested volume rather than as a line between two rooms. Links are for routes with
+no walkable volume of their own.
+
+Note that the editor has no moving brushes, so a lift or rising platform cannot be
+built as one. State the elevator as a link if that is the design intent, but expect
+the built result to be stairs, a ramp, or a platform modelled in its raised
+position.
+
 ### Muting a relation
 
 Two volumes may touch for layout reasons without being connected in play — a
@@ -163,8 +233,10 @@ Everything here is undoable and persists with the scene.
 
 1. **Block out the outer spaces.** One volume per room, hall, or corridor. Place
    the ones that connect so they actually touch.
-2. **Block out the features inside them.** Ravines, bridges, ledges, pillars,
-   cover — as volumes inside the space they belong to. Angles are fine.
+2. **Block out what is inside them.** Whatever the space contains, as volumes
+   inside the space they belong to — a ravine and the bridge across it, or the
+   island, the fridge, and the cabinets. If you would name it when describing the
+   room, it is worth a volume. Angles are fine.
 3. **Name, role, and describe.** Give every volume a purposeful name, the role
    that fits, and a description stating what it is for.
 4. **Say what is measured.** Tick exact on the volumes whose dimensions matter.

@@ -4,10 +4,19 @@ import { GreyBoxFaceContact, GreyBoxOverlap, GreyBoxRelationKind } from './grey_
 import type { GreyBoxContainment } from './grey_box_containment.js';
 import type { GreyBoxContainmentTree } from './grey_box_containment_tree.js';
 
-/** One grey box volume as a graph node. */
+/**
+ * What a graph node stands for: an authored planning volume, or a group that
+ * organizes volumes and takes its extent from them.
+ */
+export type GreyBoxNodeKind = 'volume' | 'group';
+
+/** One grey box volume or group as a graph node. */
 export interface GreyBoxGraphNode {
   /** Stable grey box id. */
   id: string;
+
+  /** Whether this node is an authored volume or a group holding volumes. */
+  kind: GreyBoxNodeKind;
 
   /** Display name. */
   name: string;
@@ -24,10 +33,10 @@ export interface GreyBoxGraphNode {
   /** Intended surface treatment and mood. */
   surface: { floor: string; wall: string; ceiling: string; mood: string };
 
-  /** World center of the volume. */
+  /** World center; for a group, the center of what it holds. */
   center: THREE.Vector3;
 
-  /** World size of the volume along its own axes. */
+  /** World size along the volume's own axes; for a group, of what it holds. */
   size: THREE.Vector3;
 
   /** Id of the volume this one sits inside, or null when it is a root. */
@@ -118,7 +127,7 @@ export interface GreyBoxGraphProblem {
 
 /** The merged layout graph: derived minus suppressed, plus authored links. */
 export interface GreyBoxMergedGraph {
-  /** Every grey box volume. */
+  /** Every grey box volume and every group organizing them. */
   nodes: GreyBoxGraphNode[];
 
   /** Edges in stable pair-key order. */

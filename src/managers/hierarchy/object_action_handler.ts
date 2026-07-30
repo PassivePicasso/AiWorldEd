@@ -16,6 +16,11 @@ import { SolidModel } from '../../solid/model/solid_model.js';
 import { findSolidModelRoot, isSolidCsgGroup, markAsSolidCsgGroup } from '../../solid/model/solid_group.js';
 import { CompositeCommand } from '../../commands/composite_command.js';
 import { PruneGreyBoxReferencesCommand } from '../../commands/greybox/prune_grey_box_references_command.js';
+import { isGreyBox } from '../../greybox/model/grey_box_keys.js';
+import { stampGreyBoxGroupMarker } from '../../greybox/model/grey_box_group.js';
+import { attachGreyBoxData } from '../../greybox/model/grey_box_access.js';
+import { allocateGreyBoxGroupName } from '../../greybox/model/grey_box_naming.js';
+import { DEFAULT_GREY_BOX_GROUP_ROLE } from '../../greybox/model/grey_box_role.js';
 
 /** Callback invoked to sync scene state to all viewports. */
 export type SyncViewportsCallback = () => void;
@@ -342,15 +347,42 @@ export class ObjectActionHandler {
       this.showMessage('Solid brushes must stay under their solid model');
       return;
     }
-    this.groupCounter++;
-    const groupName = this.buildGroupName();
+    const groupName = this.allocateGroupName(members);
     const parent = findCommonParent(members, this.worldObject);
     const command = new GroupCommand(members, parent, groupName);
     this.commandStack.push(command);
     this.finalizeSolidGroupIfNeeded(command.getGroup(), members);
+    this.finalizeGreyBoxGroupIfNeeded(command.getGroup(), members);
     SolidModel.rebuildAllUnder(this.worldObject);
     this.notifySyncAndRefresh();
     this.showGroupFeedback(groupName);
+  }
+
+  /**
+   * Names a new group after what it holds. Grouping grey boxes reads as a
+   * layout act, so the group is named for the layout rather than falling into
+   * the generic Group### sequence.
+   *
+   * @param members Hierarchy roots being grouped.
+   * @returns Name for the new group.
+   */
+  private allocateGroupName(members: readonly THREE.Object3D[]): string {
+    if (isGreyBoxSelection(members)) return allocateGreyBoxGroupName(this.worldObject);
+    this.groupCounter++;
+    return this.buildGroupName();
+  }
+
+  /**
+   * Turns a group of grey boxes into a grey box group, so the layout reads it
+   * as a branch node rather than as unrelated scene content.
+   *
+   * @param group Group created by GroupCommand.
+   * @param members Grouped members used to detect a grey box selection.
+   */
+  private finalizeGreyBoxGroupIfNeeded(group: THREE.Group, members: THREE.Object3D[]): void {
+    if (!isGreyBoxSelection(members)) return;
+    stampGreyBoxGroupMarker(group);
+    attachGreyBoxData(group, '', DEFAULT_GREY_BOX_GROUP_ROLE);
   }
 
   /**
@@ -422,7 +454,7 @@ export class ObjectActionHandler {
   }
 
   /**
-   * Builds the next group name using the internal counter.
+   * Builds the next generic group name using the internal counter.
    *
    * @returns A formatted group name string.
    */
@@ -460,4 +492,17 @@ export class ObjectActionHandler {
       this.refreshOutliner();
     }
   }
+}
+
+/**
+ * Returns whether a selection is entirely grey boxes, which is what makes
+ * grouping it a layout act rather than ordinary scene grouping. A mixed
+ * selection falls back to a plain group so nothing is silently pulled into the
+ * layout.
+ *
+ * @param members Hierarchy roots being grouped.
+ * @returns True when every member is a grey box volume or group.
+ */
+function isGreyBoxSelection(members: readonly THREE.Object3D[]): boolean {
+  return members.length > 0 && members.every((member) => isGreyBox(member));
 }

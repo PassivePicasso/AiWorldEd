@@ -14,6 +14,7 @@ import { SolidModelCodec } from '../solid/io/solid_model_codec.js';
 import { SerializedSolidModel } from '../solid/io/solid_model_codec.js';
 import { GreyBoxCodec } from '../greybox/io/grey_box_codec.js';
 import { GreyBoxRegistry } from '../greybox/model/grey_box_registry.js';
+import { stampGreyBoxGroupMarker } from '../greybox/model/grey_box_group.js';
 import { applyGreyBoxVisual, createGreyBoxMaterial } from '../greybox/model/grey_box_visual.js';
 
 /**
@@ -135,6 +136,9 @@ export class SceneDeserializer {
     if (entry.solidModel) {
       return this.createSolidModelFromEntry(entry);
     }
+    if (entry.greyBoxGroup) {
+      return this.createGreyBoxGroupFromEntry(entry);
+    }
     if (entry.greyBox) {
       return this.createGreyBoxFromEntry(entry);
     }
@@ -159,6 +163,22 @@ export class SceneDeserializer {
     applyGreyBoxVisual(mesh, data.role);
     GreyBoxRegistry.register(mesh, data);
     return mesh;
+  }
+
+  /**
+   * Restores a grey box group: an empty branch node plus its registered layout
+   * payload. Its contents arrive as ordinary child entries in the second pass.
+   *
+   * @param entry Serialized entry carrying a greyBoxGroup payload.
+   * @returns Marked and registered grey box group.
+   */
+  private createGreyBoxGroupFromEntry(entry: ObjectEntry): THREE.Group {
+    const data = GreyBoxCodec.decode(entry.greyBoxGroup, `"${entry.name}" (${entry.uuid})`);
+    const group = new THREE.Group();
+    this.applyTransformToObject(group, entry);
+    stampGreyBoxGroupMarker(group);
+    GreyBoxRegistry.register(group, data);
+    return group;
   }
 
   /**

@@ -211,10 +211,68 @@ Notes:
 - Relations are computed from real volume orientation, so rotated and angled
   volumes work. Volumes meeting only at an edge or corner are not related.
 - Every grey box write tool is undoable through `undo`.
-- `get_editor_context` reports `greyBoxCount`, and `get_scene_hierarchy` lists grey
-  box nodes.
+- `get_editor_context` reports `greyBoxCount`, and `get_scene_hierarchy` returns
+  grey box nodes nested the way the outliner shows them.
+- Every node carries a `kind`. `volume` is a planning volume. `group` is a folder
+  the user made to keep a large layout navigable: it holds volumes and other
+  groups, carries no geometry, and takes its center and size from what it holds,
+  so **never build to a group's dimensions**. Grouping is an organizing choice and
+  says nothing about the layout — it is not a substitute for nesting a feature
+  inside the volume that really contains it.
+- `create_grey_box_group`, `reparent_grey_boxes`, and `ungroup_grey_box_groups`
+  manage that structure, and `create_grey_box` takes a `parentGreyBoxId`. Reach for
+  a group when a wing or a floor has grown too many volumes to scan, not before.
 - Creating volumes yourself is legitimate when the user asks you to block out a
-  layout, but the usual direction is the other way: the user blocks out, you build.
+  layout. That direction has its own rules — see below.
+
+### Authoring a layout yourself
+
+When the user asks you to grey box something, you are producing the brief rather
+than consuming one, and the failure mode is different: layouts come out as a flat
+list of rooms with every feature described in prose instead of placed.
+
+**Box out contents, not just rooms.** Whatever the scene is — an arena, an office,
+a kitchen — the things inside a space get their own nested volumes: a bridge over a
+ravine, a staircase, a kitchen island, a filing cabinet, a crate. The test is not
+whether something counts as level geometry:
+
+> If you are about to write a noun into a `description` and that noun has a
+> location and a size, place it as a volume instead.
+
+Solid masses count as much as open space; a column or a refrigerator marks where
+matter _is_, not where anyone walks. `role` accepts any string, so nothing has to
+be forced into a gameplay category to be blocked out.
+
+**Check the shape of what you produced.** Call `get_grey_box_graph` on your own
+output. If `rootGreyBoxIds` is nearly as long as the volume list, you have written
+a list of rooms, not a blockout. Real layouts are a few roots with features nested
+one and two levels deep.
+
+**Name the enclosing area.** Parenting is derived from geometry, so the hierarchy
+is always spatially true — a parent really does contain its children, which is what
+lets it stand for an area something could be _inside of_. A volume that overhangs
+its parent becomes a root, with no error.
+
+Read that as a question about the layout rather than a snag. When a feature spans
+two spaces — a bridge landing on both banks of a ravine — the usual answer is that
+the enclosing area is missing: create the volume for the whole place and nest the
+banks, the water, and the bridge inside it. That volume is a design statement, not
+bookkeeping. It says _these parts are one space_, which is exactly what a flat list
+of siblings fails to say.
+
+**Do not tune the layout to silence the graph.** `problems: []` does not mean the
+layout is good, and resizing volumes to remove an overlap usually destroys the
+nesting that described a feature. Overlap reporting is informational.
+
+**Model what this editor can build.** There is no moving-brush support, so lifts
+and rising platforms cannot be built as such. Prefer stairs or ramps, or place the
+platform statically in its raised position and record the intended mechanism in
+the description.
+
+**Write descriptions that survive without you.** The next agent will not have your
+research, your reference images, or this conversation. State the walkable floor
+height, the proportions, what to build, and — where you have a specific reason —
+what _not_ to build.
 
 ## Not in this build
 
