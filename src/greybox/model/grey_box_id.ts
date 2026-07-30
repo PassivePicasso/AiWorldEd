@@ -15,3 +15,21 @@ export function allocateGreyBoxId(): string {
   const randomSuffix = Math.random().toString(36).slice(2, 8);
   return `${GREY_BOX_ID_PREFIX}-${greyBoxCounter}-${randomSuffix}`;
 }
+
+/** Monotonic counter for authored connection ids. */
+let connectionCounter = 0;
+
+/** Prefix identifying authored grey box connection ids. */
+const GREY_BOX_CONNECTION_ID_PREFIX = 'greylink';
+
+/**
+ * Allocates an id for an authored connection, unique within its owning volume
+ * and readable in MCP payloads.
+ *
+ * @returns Fresh connection id.
+ */
+export function allocateGreyBoxConnectionId(): string {
+  connectionCounter += 1;
+  const randomSuffix = Math.random().toString(36).slice(2, 8);
+  return `${GREY_BOX_CONNECTION_ID_PREFIX}-${connectionCounter}-${randomSuffix}`;
+}

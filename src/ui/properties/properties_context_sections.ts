@@ -2,6 +2,11 @@ import * as THREE from 'three';
 import { Theme } from '../../theme.js';
 import { PropertiesSolidBrushSection, SolidBrushPropertyHandlers } from './properties_solid_brush_section.js';
 import { GreyBoxDescriptionCommitter, PropertiesGreyBoxSection } from './properties_grey_box_section.js';
+import {
+  GreyBoxConnectionHandlers,
+  PropertiesGreyBoxConnectionsSection,
+} from './properties_grey_box_connections_section.js';
+import type { GreyBoxMergedGraph } from '../../greybox/connectivity/grey_box_graph_types.js';
 
 /**
  * Owns the inspector sections that appear only for particular object types and
@@ -11,6 +16,7 @@ import { GreyBoxDescriptionCommitter, PropertiesGreyBoxSection } from './propert
 export class PropertiesContextSections {
   private readonly solidBrushSection: PropertiesSolidBrushSection;
   private readonly greyBoxSection: PropertiesGreyBoxSection;
+  private readonly greyBoxConnectionsSection: PropertiesGreyBoxConnectionsSection;
 
   /**
    * Builds every type-specific section.
@@ -33,6 +39,10 @@ export class PropertiesContextSections {
       hexToRgb,
     );
     this.greyBoxSection = new PropertiesGreyBoxSection(createSectionContainer, createSectionHeader);
+    this.greyBoxConnectionsSection = new PropertiesGreyBoxConnectionsSection(
+      createSectionContainer,
+      createSectionHeader,
+    );
   }
 
   /**
@@ -63,13 +73,36 @@ export class PropertiesContextSections {
   }
 
   /**
+   * Wires the undoable grey box connection actions.
+   *
+   * @param handlers Connection handlers, or null to disable connection editing.
+   */
+  setGreyBoxConnectionHandlers(handlers: GreyBoxConnectionHandlers | null): void {
+    this.greyBoxConnectionsSection.setHandlers(handlers);
+  }
+
+  /**
+   * Supplies the merged layout graph the connection rows read from.
+   *
+   * @param graph Merged graph, or null when unavailable.
+   */
+  setGreyBoxGraph(graph: GreyBoxMergedGraph | null): void {
+    this.greyBoxConnectionsSection.setGraph(graph);
+  }
+
+  /**
    * Appends every section to the panel container.
    *
    * @param container Panel container element.
    * @param registerSection Records a mounted section with the panel.
    */
   mountInto(container: HTMLElement, registerSection: (section: HTMLElement) => void): void {
-    for (const element of [this.solidBrushSection.getElement(), this.greyBoxSection.getElement()]) {
+    const elements = [
+      this.solidBrushSection.getElement(),
+      this.greyBoxSection.getElement(),
+      this.greyBoxConnectionsSection.getElement(),
+    ];
+    for (const element of elements) {
       registerSection(element);
       container.appendChild(element);
     }
@@ -83,6 +116,7 @@ export class PropertiesContextSections {
   updateFromObjects(objects: THREE.Object3D[]): void {
     this.solidBrushSection.updateFromObjects(objects);
     this.greyBoxSection.updateFromObjects(objects);
+    this.greyBoxConnectionsSection.updateFromObjects(objects);
   }
 
   /** Hides every type-specific section. */

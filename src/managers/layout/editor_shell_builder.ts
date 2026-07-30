@@ -12,6 +12,8 @@ import { GridSnap } from '../../transform/snap/grid_snap.js';
 import { TextureLockSettings } from '../../texture/lock/texture_lock_settings.js';
 import { createAddMenuEntries } from './add_menu_entries.js';
 import { commitGreyBoxDescription } from '../hierarchy/grey_box_description_commit.js';
+import { createGreyBoxConnectionHandlers } from '../hierarchy/grey_box_connection_actions.js';
+import { buildGreyBoxSceneGraph } from '../../greybox/connectivity/grey_box_scene_graph.js';
 import type { OutlinerDropPlacement } from '../../ui/outliner/outliner_drop_placement.js';
 
 /**
@@ -150,7 +152,13 @@ export class EditorShellBuilder {
       hierarchyReparentHandler,
       outlinerActions,
     );
-    const propertiesPanel = this.createPropertiesPanel(mainLayout, selectionManager, commandStack, textureLock);
+    const propertiesPanel = this.createPropertiesPanel(
+      mainLayout,
+      selectionManager,
+      commandStack,
+      textureLock,
+      worldObject,
+    );
     const statusBar = this.createStatusBar(toolbarContainer, gridSnap, commandStack);
     return {
       toolbarContainer,
@@ -324,6 +332,7 @@ export class EditorShellBuilder {
    * @param selectionManager Shared selection manager.
    * @param commandStack Undo stack for property edits.
    * @param textureLock Texture lock settings.
+   * @param worldObject Root the grey box volumes live under.
    * @returns Configured PropertiesPanel.
    */
   private createPropertiesPanel(
@@ -331,6 +340,7 @@ export class EditorShellBuilder {
     selectionManager: SelectionManager,
     commandStack: CommandStack,
     textureLock: TextureLockSettings,
+    worldObject: THREE.Group,
   ): PropertiesPanel {
     const propertiesPanel = new PropertiesPanel(mainLayout, Theme, selectionManager);
     propertiesPanel.setCommandStack(commandStack);
@@ -338,7 +348,30 @@ export class EditorShellBuilder {
     propertiesPanel.setGreyBoxDescriptionCommitter((greyBox, description) =>
       commitGreyBoxDescription(commandStack, greyBox, description),
     );
+    this.bindGreyBoxConnections(propertiesPanel, commandStack, worldObject);
     return propertiesPanel;
+  }
+
+  /**
+   * Wires grey box connection editing: id-based undoable actions plus a graph
+   * refresh whenever the selection changes, so the connections section always
+   * lists the current adjacency.
+   *
+   * @param propertiesPanel Inspector panel to wire.
+   * @param commandStack Undo stack receiving connection edits.
+   * @param worldObject Root the grey box volumes live under.
+   */
+  private bindGreyBoxConnections(
+    propertiesPanel: PropertiesPanel,
+    commandStack: CommandStack,
+    worldObject: THREE.Group,
+  ): void {
+    const refreshGraph = (): void => propertiesPanel.setGreyBoxGraph(buildGreyBoxSceneGraph(worldObject));
+    propertiesPanel.setGreyBoxConnectionHandlers(
+      createGreyBoxConnectionHandlers(commandStack, worldObject, (graph) => propertiesPanel.setGreyBoxGraph(graph)),
+    );
+    propertiesPanel.setBeforeSelectionUpdate(refreshGraph);
+    refreshGraph();
   }
 
   /**

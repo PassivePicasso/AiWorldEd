@@ -7,12 +7,15 @@ import { DeleteSolidBrushesCommand } from '../../commands/solid/delete_solid_bru
 import { GroupCommand } from '../../commands/object/group_command.js';
 import { UngroupCommand } from '../../commands/object/ungroup_command.js';
 import { CommandStack } from '../../commands/command_stack.js';
+import type { UndoCommand } from '../../commands/undo_command.js';
 import { SelectionManager } from '../../selection/object/selection_manager.js';
 import { collapseToHierarchyRoots, findCommonParent } from '../../utils/hierarchy_selection.js';
 import { filterUnlockedObjects, isObjectOrAncestorLocked } from '../../utils/object_lock.js';
 import { SolidBrushVisual } from '../../solid/model/solid_brush_visual.js';
 import { SolidModel } from '../../solid/model/solid_model.js';
 import { findSolidModelRoot, isSolidCsgGroup, markAsSolidCsgGroup } from '../../solid/model/solid_group.js';
+import { CompositeCommand } from '../../commands/composite_command.js';
+import { PruneGreyBoxReferencesCommand } from '../../commands/greybox/prune_grey_box_references_command.js';
 
 /** Callback invoked to sync scene state to all viewports. */
 export type SyncViewportsCallback = () => void;
@@ -128,11 +131,26 @@ export class ObjectActionHandler {
       this.commandStack.push(new DeleteSolidBrushesCommand(solidBrushes));
     }
     if (otherRoots.length > 0) {
-      this.commandStack.push(new DeleteHierarchyCommand(otherRoots));
+      this.commandStack.push(this.withGreyBoxReferencePruning(new DeleteHierarchyCommand(otherRoots), otherRoots));
     }
     this.selectionManager.clearSelection();
     this.notifySyncAndRefresh();
     this.showMessage(`Deleted ${roots.length} object(s)`);
+  }
+
+  /**
+   * Wraps a delete command so authored grey box links pointing at the deleted
+   * volumes are pruned in the same undo entry. Returns the command unchanged
+   * when no grey box is being deleted.
+   *
+   * @param deleteCommand Command performing the deletion.
+   * @param deleted Objects being deleted.
+   * @returns Command to push onto the stack.
+   */
+  private withGreyBoxReferencePruning(deleteCommand: UndoCommand, deleted: THREE.Object3D[]): UndoCommand {
+    const greyBoxIds = PruneGreyBoxReferencesCommand.collectGreyBoxIds(deleted);
+    if (greyBoxIds.length === 0) return deleteCommand;
+    return new CompositeCommand([deleteCommand, new PruneGreyBoxReferencesCommand(this.worldObject, greyBoxIds)]);
   }
 
   /**
@@ -148,7 +166,7 @@ export class ObjectActionHandler {
     }
     if (regularMeshes.length > 0) {
       const snapshots = this.buildDeleteSnapshots(regularMeshes);
-      this.commandStack.push(new DeleteObjectCommand(snapshots));
+      this.commandStack.push(this.withGreyBoxReferencePruning(new DeleteObjectCommand(snapshots), regularMeshes));
     }
     this.selectionManager.clearSelection();
     this.notifySyncAndRefresh();

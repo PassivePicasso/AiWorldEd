@@ -42,8 +42,16 @@ describe('PropertiesPanel', () => {
   it('should mount one section per inspector concern', () => {
     const panelElement = container.children[0] as HTMLElement;
     const titles = Array.from(panelElement.children).map((section) => section.textContent ?? '');
-    expect(titles.length).toBe(6);
-    for (const expected of ['Position', 'Rotation', 'Scale', 'Material', 'Solid Model', 'Grey Box']) {
+    expect(titles.length).toBe(7);
+    for (const expected of [
+      'Position',
+      'Rotation',
+      'Scale',
+      'Material',
+      'Solid Model',
+      'Grey Box',
+      'Grey Box Connections',
+    ]) {
       expect(titles.some((title) => title.includes(expected))).toBe(true);
     }
   });

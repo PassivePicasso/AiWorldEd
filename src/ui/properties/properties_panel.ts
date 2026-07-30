@@ -12,6 +12,8 @@ import { SolidBrushVisual } from '../../solid/model/solid_brush_visual.js';
 import { SolidBrushPropertyHandlers } from './properties_solid_brush_section.js';
 import { PropertiesContextSections } from './properties_context_sections.js';
 import type { GreyBoxDescriptionCommitter } from './properties_grey_box_section.js';
+import type { GreyBoxConnectionHandlers } from './properties_grey_box_connections_section.js';
+import type { GreyBoxMergedGraph } from '../../greybox/connectivity/grey_box_graph_types.js';
 import { PropertiesColorSession } from './properties_color_session.js';
 
 export type { SolidBrushPropertyHandlers };
@@ -56,6 +58,8 @@ export class PropertiesPanel {
    * undo/redo).
    */
   private afterTransformCommit: ((objects: THREE.Object3D[]) => void) | null;
+  /** Hook run before sections read a new selection (grey box graph refresh). */
+  private beforeSelectionUpdate: (() => void) | null;
 
   /**
    * Creates a new properties panel.
@@ -80,6 +84,7 @@ export class PropertiesPanel {
     this.inputChangeHandlers = [];
     this.colorSession = new PropertiesColorSession();
     this.afterTransformCommit = null;
+    this.beforeSelectionUpdate = null;
     this.contextSections = new PropertiesContextSections(
       this.theme,
       () => this.createSectionContainer(),
@@ -118,6 +123,35 @@ export class PropertiesPanel {
    */
   setGreyBoxDescriptionCommitter(committer: GreyBoxDescriptionCommitter | null): void {
     this.contextSections.setGreyBoxDescriptionCommitter(committer);
+  }
+
+  /**
+   * Wires the undoable grey box connection actions for the connections section.
+   *
+   * @param handlers Connection handlers, or null to disable editing.
+   */
+  setGreyBoxConnectionHandlers(handlers: GreyBoxConnectionHandlers | null): void {
+    this.contextSections.setGreyBoxConnectionHandlers(handlers);
+  }
+
+  /**
+   * Sets a hook run before the sections read a new selection. Used to refresh
+   * derived data that depends on scene state rather than on the selection
+   * alone.
+   *
+   * @param callback Hook to run, or null to clear.
+   */
+  setBeforeSelectionUpdate(callback: (() => void) | null): void {
+    this.beforeSelectionUpdate = callback;
+  }
+
+  /**
+   * Supplies the merged grey box layout graph the connections section reads.
+   *
+   * @param graph Merged graph, or null when unavailable.
+   */
+  setGreyBoxGraph(graph: GreyBoxMergedGraph | null): void {
+    this.contextSections.setGreyBoxGraph(graph);
   }
 
   /**
@@ -202,6 +236,7 @@ export class PropertiesPanel {
    * @param objects Objects in the current selection.
    */
   updateFromObjects(objects: THREE.Object3D[]): void {
+    this.beforeSelectionUpdate?.();
     if (objects.length === 0) {
       this.clearAllInputs();
       this.contextSections.clear();
