@@ -37,6 +37,7 @@ export const GREY_BOX_TOOL_DEFINITIONS: McpToolDefinition[] = [
     properties: {
       name: { type: 'string', description: 'Display name; auto-named when omitted.' },
       description: { type: 'string', description: 'Purpose of the volume, read back by layout tools.' },
+      role: { type: 'string', description: 'Gameplay role; see set_grey_box_role for the known set.' },
       center: vec3Schema,
       size: vec3Schema,
     },
@@ -57,6 +58,20 @@ export const GREY_BOX_TOOL_DEFINITIONS: McpToolDefinition[] = [
     },
     required: ['greyBoxId', 'description'],
   }),
+  tool(
+    'set_grey_box_role',
+    'Set a grey box gameplay role (undoable). Known roles: room, corridor, bridge, ledge, platform, pit, ravine, ' +
+      'cover, hazard, landmark, objective, spawn, transition. Any other string is accepted. The role colours the ' +
+      'volume in the editor and tells you what the space is for.',
+    {
+      type: 'object',
+      properties: {
+        greyBoxId: { type: 'string' },
+        role: { type: 'string' },
+      },
+      required: ['greyBoxId', 'role'],
+    },
+  ),
   tool('set_grey_box_transform', 'Move and resize a grey box volume (undoable).', {
     type: 'object',
     properties: {

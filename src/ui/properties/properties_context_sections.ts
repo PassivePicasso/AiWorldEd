@@ -1,7 +1,11 @@
 import * as THREE from 'three';
 import { Theme } from '../../theme.js';
 import { PropertiesSolidBrushSection, SolidBrushPropertyHandlers } from './properties_solid_brush_section.js';
-import { GreyBoxDescriptionCommitter, PropertiesGreyBoxSection } from './properties_grey_box_section.js';
+import {
+  GreyBoxDescriptionCommitter,
+  GreyBoxRoleCommitter,
+  PropertiesGreyBoxSection,
+} from './properties_grey_box_section.js';
 import {
   GreyBoxConnectionHandlers,
   PropertiesGreyBoxConnectionsSection,
@@ -70,6 +74,15 @@ export class PropertiesContextSections {
    */
   setGreyBoxDescriptionCommitter(committer: GreyBoxDescriptionCommitter | null): void {
     this.greyBoxSection.setDescriptionCommitter(committer);
+  }
+
+  /**
+   * Wires the callback that commits a grey box role change.
+   *
+   * @param committer Commit callback, or null to leave the role read-only.
+   */
+  setGreyBoxRoleCommitter(committer: GreyBoxRoleCommitter | null): void {
+    this.greyBoxSection.setRoleCommitter(committer);
   }
 
   /**

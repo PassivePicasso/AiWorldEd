@@ -1,6 +1,7 @@
 import * as THREE from 'three';
 import { CommandStack } from '../../commands/command_stack.js';
 import { SetGreyBoxDescriptionCommand } from '../../commands/greybox/set_grey_box_description_command.js';
+import { SetGreyBoxRoleCommand } from '../../commands/greybox/set_grey_box_role_command.js';
 import { isObjectOrAncestorLocked } from '../../utils/object_lock.js';
 
 /**
@@ -20,5 +21,21 @@ export function commitGreyBoxDescription(
   if (isObjectOrAncestorLocked(greyBox)) return;
   const command = SetGreyBoxDescriptionCommand.fromCurrent(greyBox, description);
   if (!command.changesDescription()) return;
+  commandStack.push(command);
+}
+
+/**
+ * Commits a grey box role change as a single undoable step, skipping a change
+ * that names the role the volume already has.
+ *
+ * @param commandStack Undo stack receiving the edit.
+ * @param greyBox Grey box being reclassified.
+ * @param role Role text from the inspector.
+ */
+export function commitGreyBoxRole(commandStack: CommandStack, greyBox: THREE.Object3D, role: string): void {
+  if (isObjectOrAncestorLocked(greyBox)) return;
+  if (!(greyBox instanceof THREE.Mesh)) return;
+  const command = SetGreyBoxRoleCommand.fromCurrent(greyBox, role);
+  if (!command.changesRole()) return;
   commandStack.push(command);
 }

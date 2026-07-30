@@ -2,16 +2,23 @@ import * as THREE from 'three';
 import { Theme } from '../../theme.js';
 import { isGreyBox } from '../../greybox/model/grey_box_keys.js';
 import { GreyBoxRegistry } from '../../greybox/model/grey_box_registry.js';
-import { getGreyBoxDescription } from '../../greybox/model/grey_box_access.js';
+import { getGreyBoxDescription, getGreyBoxRole } from '../../greybox/model/grey_box_access.js';
+import { KNOWN_GREY_BOX_ROLES } from '../../greybox/model/grey_box_role.js';
 
 /** Placeholder guiding the user toward descriptions an AI agent can act on. */
 const DESCRIPTION_PLACEHOLDER = 'What is this space for? Mood, role, what connects here.';
+
+/** Element id linking the role input to its list of documented roles. */
+const ROLE_OPTIONS_ID = 'grey-box-role-options';
 
 /** Text shown in the name row when several volumes are selected. */
 const MIXED_SELECTION_LABEL = '— multiple —';
 
 /** Commits a description edit as one undoable step. */
 export type GreyBoxDescriptionCommitter = (greyBox: THREE.Object3D, description: string) => void;
+
+/** Commits a role change as one undoable step. */
+export type GreyBoxRoleCommitter = (greyBox: THREE.Object3D, role: string) => void;
 
 /**
  * Inspector section for grey box planning volumes: the volume's name for
@@ -22,9 +29,11 @@ export class PropertiesGreyBoxSection {
   private readonly section: HTMLElement;
   private readonly nameValue: HTMLElement;
   private readonly descriptionInput: HTMLTextAreaElement;
+  private readonly roleInput: HTMLInputElement;
   private boundGreyBoxes: THREE.Object3D[];
   private descriptionAtFocus: string | null;
   private commitDescription: GreyBoxDescriptionCommitter | null;
+  private commitRole: GreyBoxRoleCommitter | null;
 
   /**
    * Builds the grey box section UI.
@@ -36,6 +45,8 @@ export class PropertiesGreyBoxSection {
     this.boundGreyBoxes = [];
     this.descriptionAtFocus = null;
     this.commitDescription = null;
+    this.commitRole = null;
+    this.roleInput = this.createRoleInput();
     this.section = createSectionContainer();
     this.section.style.display = 'none';
     this.section.appendChild(createSectionHeader('Grey Box'));
@@ -52,6 +63,15 @@ export class PropertiesGreyBoxSection {
    */
   setDescriptionCommitter(committer: GreyBoxDescriptionCommitter | null): void {
     this.commitDescription = committer;
+  }
+
+  /**
+   * Sets the callback that turns a role change into an undoable command.
+   *
+   * @param committer Commit callback, or null to make the role read-only.
+   */
+  setRoleCommitter(committer: GreyBoxRoleCommitter | null): void {
+    this.commitRole = committer;
   }
 
   /**
@@ -79,6 +99,7 @@ export class PropertiesGreyBoxSection {
     }
     this.section.style.display = 'block';
     this.writeNameRow();
+    this.writeRoleField();
     this.writeDescriptionField();
   }
 
@@ -100,6 +121,13 @@ export class PropertiesGreyBoxSection {
   private writeNameRow(): void {
     const single = this.singleBoundGreyBox();
     this.nameValue.textContent = single ? single.name : MIXED_SELECTION_LABEL;
+  }
+
+  /** Writes the role field and its editability from the selection. */
+  private writeRoleField(): void {
+    const single = this.singleBoundGreyBox();
+    this.roleInput.value = single ? getGreyBoxRole(single) : '';
+    this.roleInput.disabled = single === null;
   }
 
   /** Writes the description field and its editability from the selection. */
@@ -138,6 +166,7 @@ export class PropertiesGreyBoxSection {
     content.style.flexDirection = 'column';
     content.style.gap = '6px';
     content.appendChild(this.createNameRow());
+    content.appendChild(this.createRoleRow());
     content.appendChild(this.createDescriptionLabel());
     content.appendChild(this.descriptionInput);
     return content;
@@ -157,6 +186,73 @@ export class PropertiesGreyBoxSection {
     row.appendChild(this.createFieldLabel('Name'));
     row.appendChild(this.nameValue);
     return row;
+  }
+
+  /**
+   * Builds the role row: a text input backed by the documented vocabulary, so
+   * known roles are one keystroke away and any other value is still accepted.
+   *
+   * @returns Role row element.
+   */
+  private createRoleRow(): HTMLElement {
+    const row = document.createElement('div');
+    row.style.display = 'flex';
+    row.style.alignItems = 'center';
+    row.style.gap = '6px';
+    row.appendChild(this.createFieldLabel('Role'));
+    row.appendChild(this.roleInput);
+    row.appendChild(this.createRoleOptions());
+    return row;
+  }
+
+  /**
+   * Builds the role input and binds its commit behaviour.
+   *
+   * @returns Role input element.
+   */
+  private createRoleInput(): HTMLInputElement {
+    const input = document.createElement('input');
+    input.type = 'text';
+    input.setAttribute('list', ROLE_OPTIONS_ID);
+    input.placeholder = 'room';
+    input.title = 'Gameplay function: colours the volume and tells an agent what it is';
+    input.style.flex = '1';
+    input.style.minWidth = '0';
+    input.style.fontSize = '11px';
+    input.style.color = Theme.buttonTextColor;
+    input.style.background = '#1a1a1a';
+    input.style.border = '1px solid #3a3a3a';
+    input.style.borderRadius = '2px';
+    input.style.padding = '2px 4px';
+    input.addEventListener('change', () => this.commitRoleEdit());
+    input.addEventListener('blur', () => this.commitRoleEdit());
+    input.addEventListener('keydown', (event) => event.stopPropagation());
+    return input;
+  }
+
+  /**
+   * Builds the datalist offering the documented roles.
+   *
+   * @returns Datalist element.
+   */
+  private createRoleOptions(): HTMLElement {
+    const list = document.createElement('datalist');
+    list.id = ROLE_OPTIONS_ID;
+    for (const role of KNOWN_GREY_BOX_ROLES) {
+      const option = document.createElement('option');
+      option.value = role;
+      list.appendChild(option);
+    }
+    return list;
+  }
+
+  /** Commits a role edit when it names something different. */
+  private commitRoleEdit(): void {
+    const target = this.singleBoundGreyBox();
+    if (!target || !this.commitRole) return;
+    if (this.roleInput.value.trim().toLowerCase() === getGreyBoxRole(target)) return;
+    this.commitRole(target, this.roleInput.value);
+    this.writeRoleField();
   }
 
   /**

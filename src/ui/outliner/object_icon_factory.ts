@@ -5,6 +5,9 @@ import { SolidBrushVisual } from '../../solid/model/solid_brush_visual.js';
 import { getSolidGroupOperation, isSolidCsgGroup } from '../../solid/model/solid_group.js';
 import { SolidOperation } from '../../solid/types/solid_operation.js';
 import { isGreyBox } from '../../greybox/model/grey_box_keys.js';
+import { GreyBoxRegistry } from '../../greybox/model/grey_box_registry.js';
+import { GreyBoxEdgeMaterials } from '../../greybox/model/grey_box_edge_materials.js';
+import { DEFAULT_GREY_BOX_ROLE } from '../../greybox/model/grey_box_role.js';
 
 /** Icon configuration for different object types in the outliner. */
 export interface ObjectIcon {
@@ -64,7 +67,7 @@ export class ObjectIconFactory {
    */
   static getIcon(obj: THREE.Object3D): ObjectIcon {
     if (isGreyBox(obj)) {
-      return this.getGreyBoxIcon();
+      return this.getGreyBoxIcon(obj);
     }
     if (SolidModel.isSolidModelObject(obj)) {
       return this.getSolidModelIcon();
@@ -173,13 +176,16 @@ export class ObjectIconFactory {
   }
 
   /**
-   * Returns the icon for a grey box planning volume: a hollow box in the cool
-   * grey family, distinct from both content boxes and solid brushes.
+   * Returns the icon for a grey box planning volume: a hollow box tinted by its
+   * gameplay role, distinct from both content boxes and solid brushes.
    *
+   * @param greyBox Grey box volume.
    * @returns The grey box icon configuration.
    */
-  private static getGreyBoxIcon(): ObjectIcon {
-    return { character: '▢', color: '#8895a6' };
+  private static getGreyBoxIcon(greyBox: THREE.Object3D): ObjectIcon {
+    const role = GreyBoxRegistry.tryGet(greyBox)?.role ?? DEFAULT_GREY_BOX_ROLE;
+    const hex = GreyBoxEdgeMaterials.colorForRole(role);
+    return { character: '▢', color: `#${hex.toString(16).padStart(6, '0')}` };
   }
 
   /**

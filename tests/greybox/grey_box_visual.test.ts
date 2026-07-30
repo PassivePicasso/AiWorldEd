@@ -17,6 +17,7 @@ import {
   GreyBoxEdgeMaterials,
 } from '../../src/greybox/model/grey_box_edge_materials.js';
 import { createGreyBoxMesh } from '../../src/greybox/model/grey_box_factory.js';
+import { DEFAULT_GREY_BOX_ROLE } from '../../src/greybox/model/grey_box_role.js';
 import { createContentMaterial } from '../../src/materials/content_material_factory.js';
 import { DECORATIVE_EDGE_USERDATA_KEY } from '../../src/utils/mesh_edge_sync.js';
 import { Theme } from '../../src/theme.js';
@@ -42,7 +43,7 @@ describe('grey box fill', () => {
     expect(material.transparent).toBe(true);
     expect(material.depthWrite).toBe(false);
     expect(material.side).toBe(THREE.DoubleSide);
-    expect(material.color.getHex()).toBe(Theme.greyBoxColor);
+    expect(material.color.getHex()).toBe(Theme.greyBoxRoleColors[DEFAULT_GREY_BOX_ROLE]);
   });
 
   it('is visually distinct from the ordinary content material', () => {
@@ -72,11 +73,11 @@ describe('grey box outline', () => {
     const first = createGreyBoxMesh('First', 4, 4, 4);
     const second = createGreyBoxMesh('Second', 8, 8, 8);
     expect(outlineMaterial(first)).toBe(outlineMaterial(second));
-    expect(outlineMaterial(first)).toBe(GreyBoxEdgeMaterials.getOutlineMaterial());
+    expect(outlineMaterial(first)).toBe(GreyBoxEdgeMaterials.getOutlineMaterial(DEFAULT_GREY_BOX_ROLE));
   });
 
   it('marks the shared material so dispose paths skip it', () => {
-    const material = GreyBoxEdgeMaterials.getOutlineMaterial();
+    const material = GreyBoxEdgeMaterials.getOutlineMaterial(DEFAULT_GREY_BOX_ROLE);
     expect(material.userData[GREY_BOX_SHARED_MATERIAL_KEY]).toBe(true);
     expect(material.userData[GREY_BOX_DISTANCE_FADE_KEY]).toBe(true);
     expect(GreyBoxEdgeMaterials.isSharedMaterial(material)).toBe(true);
@@ -84,28 +85,28 @@ describe('grey box outline', () => {
 
   it('keeps the shared material alive when a volume rebuilds its outline', () => {
     const mesh = createGreyBoxMesh('Volume', 4, 4, 4);
-    const shared = GreyBoxEdgeMaterials.getOutlineMaterial();
+    const shared = GreyBoxEdgeMaterials.getOutlineMaterial(DEFAULT_GREY_BOX_ROLE);
     applyGreyBoxVisual(mesh);
     expect(outlineMaterial(mesh)).toBe(shared);
     expect(shared.uniforms['opacity']!.value).toBeCloseTo(GREY_BOX_EDGE_OPACITY);
   });
 
   it('carries distance-fade uniforms tuned for layout range', () => {
-    const material = GreyBoxEdgeMaterials.getOutlineMaterial();
+    const material = GreyBoxEdgeMaterials.getOutlineMaterial(DEFAULT_GREY_BOX_ROLE);
     expect(material.uniforms['fadeNear']!.value).toBe(GREY_BOX_EDGE_FADE_NEAR);
     expect(material.uniforms['fadeFar']!.value).toBe(GREY_BOX_EDGE_FADE_FAR);
     expect(GREY_BOX_EDGE_FADE_FAR).toBeGreaterThan(GREY_BOX_EDGE_FADE_NEAR);
   });
 
   it('skips the fade for orthographic cameras inside the shader', () => {
-    const material = GreyBoxEdgeMaterials.getOutlineMaterial();
+    const material = GreyBoxEdgeMaterials.getOutlineMaterial(DEFAULT_GREY_BOX_ROLE);
     expect(material.vertexShader).toContain('projectionMatrix[2][3]');
     expect(material.vertexShader).toContain('isPerspective');
     expect(material.vertexShader).toContain('vFade = 1.0');
   });
 
   it('toggles depth testing between perspective and orthographic passes', () => {
-    const material = GreyBoxEdgeMaterials.getOutlineMaterial();
+    const material = GreyBoxEdgeMaterials.getOutlineMaterial(DEFAULT_GREY_BOX_ROLE);
     GreyBoxEdgeMaterials.setDepthOcclusionEnabled(true);
     expect(material.depthTest).toBe(true);
     expect(material.depthFunc).toBe(THREE.LessEqualDepth);
@@ -117,7 +118,7 @@ describe('grey box outline', () => {
   });
 
   it('never writes depth from the outline', () => {
-    expect(GreyBoxEdgeMaterials.getOutlineMaterial().depthWrite).toBe(false);
+    expect(GreyBoxEdgeMaterials.getOutlineMaterial(DEFAULT_GREY_BOX_ROLE).depthWrite).toBe(false);
   });
 
   it('never stacks duplicate outlines when reapplied', () => {

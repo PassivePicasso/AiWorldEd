@@ -1,4 +1,5 @@
 import { GreyBoxData } from '../model/grey_box_data.js';
+import { DEFAULT_GREY_BOX_ROLE, normalizeGreyBoxRole } from '../model/grey_box_role.js';
 import {
   GreyBoxExplicitConnection,
   createExplicitConnection,
@@ -21,6 +22,8 @@ export interface SerializedGreyBoxConnection {
 export interface SerializedGreyBox {
   id: string;
   description: string;
+  /** Gameplay role. Absent in scenes written before roles existed. */
+  role?: string;
   explicitConnections: SerializedGreyBoxConnection[];
   suppressedDerivedConnections: string[];
 }
@@ -41,6 +44,7 @@ export class GreyBoxCodec {
     return {
       id: data.id,
       description: data.description,
+      role: data.role,
       explicitConnections: data.explicitConnections.map((connection) => this.encodeConnection(connection)),
       suppressedDerivedConnections: data.suppressedDerivedConnections.slice(),
     };
@@ -58,6 +62,7 @@ export class GreyBoxCodec {
     return {
       id: this.requireNonEmptyString(record['id'], 'id', objectLabel),
       description: this.requireString(record['description'], 'description', objectLabel),
+      role: this.decodeRole(record['role'], objectLabel),
       explicitConnections: this.decodeConnections(record['explicitConnections'], objectLabel),
       suppressedDerivedConnections: this.decodeSuppressions(record['suppressedDerivedConnections'], objectLabel),
     };
@@ -77,6 +82,20 @@ export class GreyBoxCodec {
       note: connection.note,
       direction: connection.direction,
     };
+  }
+
+  /**
+   * Decodes the gameplay role. An absent role is a _migration_ value for scenes
+   * written before roles existed, not a fallback for bad data: a role present
+   * but not a string is still malformed and throws.
+   *
+   * @param value Candidate role.
+   * @param objectLabel Label naming the offending object.
+   * @returns Stored role.
+   */
+  private static decodeRole(value: unknown, objectLabel: string): string {
+    if (value === undefined) return DEFAULT_GREY_BOX_ROLE;
+    return normalizeGreyBoxRole(this.requireString(value, 'role', objectLabel));
   }
 
   /**

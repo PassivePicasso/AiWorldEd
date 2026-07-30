@@ -15,6 +15,9 @@ export interface GreyBoxGraphNode {
   /** User-authored purpose of the volume. */
   description: string;
 
+  /** Gameplay function of the volume. */
+  role: string;
+
   /** World center of the volume. */
   center: THREE.Vector3;
 

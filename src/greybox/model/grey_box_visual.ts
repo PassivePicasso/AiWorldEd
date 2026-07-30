@@ -1,7 +1,7 @@
 import * as THREE from 'three';
-import { Theme } from '../../theme.js';
 import { DECORATIVE_EDGE_USERDATA_KEY } from '../../utils/mesh_edge_sync.js';
 import { GreyBoxEdgeMaterials } from './grey_box_edge_materials.js';
+import { DEFAULT_GREY_BOX_ROLE, GreyBoxRole } from './grey_box_role.js';
 
 /**
  * Fill opacity of a selected volume. Unselected volumes are outline-only, the
@@ -23,14 +23,15 @@ export const GREY_BOX_FILL_USERDATA_KEY = 'greyBoxFillVisible';
 export const GREY_BOX_RENDER_ORDER = 2;
 
 /**
- * Builds the fill material for a grey box volume. Depth writes are off so
- * geometry authored inside reads through the fill.
+ * Builds the fill material for a grey box volume, tinted by its role. Depth
+ * writes are off so geometry authored inside reads through the fill.
  *
+ * @param role Gameplay role of the volume.
  * @returns Fill material, starting outline-only (fully transparent).
  */
-export function createGreyBoxMaterial(): THREE.MeshBasicMaterial {
+export function createGreyBoxMaterial(role: GreyBoxRole = DEFAULT_GREY_BOX_ROLE): THREE.MeshBasicMaterial {
   return new THREE.MeshBasicMaterial({
-    color: Theme.greyBoxColor,
+    color: GreyBoxEdgeMaterials.colorForRole(role),
     transparent: true,
     opacity: 0,
     depthWrite: false,
@@ -39,18 +40,20 @@ export function createGreyBoxMaterial(): THREE.MeshBasicMaterial {
 }
 
 /**
- * Applies the grey box look to a mesh: a shared distance-faded outline plus a
- * fill that only appears while the volume is selected. Used on creation and on
- * scene load so a loaded volume never renders as ordinary content geometry.
+ * Applies the grey box look to a mesh: a role-coloured, distance-faded outline
+ * plus a fill that only appears while the volume is selected. Used on creation,
+ * on scene load, and on a role change, so a loaded or restyled volume never
+ * renders as ordinary content geometry.
  *
  * @param mesh Grey box volume mesh.
+ * @param role Gameplay role driving the colour.
  */
-export function applyGreyBoxVisual(mesh: THREE.Mesh): void {
+export function applyGreyBoxVisual(mesh: THREE.Mesh, role: GreyBoxRole = DEFAULT_GREY_BOX_ROLE): void {
   disposeReplaceableMaterial(mesh);
-  mesh.material = createGreyBoxMaterial();
+  mesh.material = createGreyBoxMaterial(role);
   mesh.renderOrder = GREY_BOX_RENDER_ORDER;
   removeGreyBoxOutline(mesh);
-  mesh.add(buildGreyBoxOutline(mesh.geometry));
+  mesh.add(buildGreyBoxOutline(mesh.geometry, role));
   setGreyBoxFillVisible(mesh, isGreyBoxFillVisible(mesh));
 }
 
@@ -93,12 +96,13 @@ export function isGreyBoxFillVisible(mesh: THREE.Object3D): boolean {
  * Builds the outline child for a volume, bound to the shared faded material.
  *
  * @param geometry Volume geometry to outline.
+ * @param role Gameplay role driving the colour.
  * @returns Outline line segments marked as a decorative helper.
  */
-function buildGreyBoxOutline(geometry: THREE.BufferGeometry): THREE.LineSegments {
+function buildGreyBoxOutline(geometry: THREE.BufferGeometry, role: GreyBoxRole): THREE.LineSegments {
   const outline = new THREE.LineSegments(
     new THREE.EdgesGeometry(geometry, 1),
-    GreyBoxEdgeMaterials.getOutlineMaterial(),
+    GreyBoxEdgeMaterials.getOutlineMaterial(role),
   );
   outline.userData[GREY_BOX_OUTLINE_USERDATA_KEY] = true;
   outline.userData[DECORATIVE_EDGE_USERDATA_KEY] = true;

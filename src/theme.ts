@@ -39,6 +39,26 @@ export const Theme = Object.freeze({
   greyBoxColor: 0x8895a6,
   /** Grey box outline: brighter cool edge that stays readable in 2D views. */
   greyBoxEdgeColor: 0xc2d0e0,
+  /**
+   * Grey box colour per gameplay role, so a blockout is read at a glance the
+   * way the discipline reads one. Roles with no entry fall back to
+   * greyBoxEdgeColor.
+   */
+  greyBoxRoleColors: {
+    room: 0x8895a6,
+    corridor: 0x7fa8c9,
+    bridge: 0xd9a05b,
+    ledge: 0xc0d16a,
+    platform: 0x9ecf7f,
+    pit: 0xb85c5c,
+    ravine: 0xa04f6e,
+    cover: 0x6fc2b0,
+    hazard: 0xe0603a,
+    landmark: 0xd9c74a,
+    objective: 0xe0a3d9,
+    spawn: 0x63d68a,
+    transition: 0x9d8fd1,
+  } as Record<string, number>,
   lightAmbient: 0xffffff,
   lightDirectional: 0xffffff,
   viewportLabelTextColor: '#c8c8c8',

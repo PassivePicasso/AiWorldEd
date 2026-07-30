@@ -154,9 +154,9 @@ export class SceneDeserializer {
    */
   private createGreyBoxFromEntry(entry: ObjectEntry): THREE.Mesh {
     const data = GreyBoxCodec.decode(entry.greyBox, `"${entry.name}" (${entry.uuid})`);
-    const mesh = new THREE.Mesh(this.reconstructGeometry(entry), createGreyBoxMaterial());
+    const mesh = new THREE.Mesh(this.reconstructGeometry(entry), createGreyBoxMaterial(data.role));
     this.applyTransformToMesh(mesh, entry);
-    applyGreyBoxVisual(mesh);
+    applyGreyBoxVisual(mesh, data.role);
     GreyBoxRegistry.register(mesh, data);
     return mesh;
   }

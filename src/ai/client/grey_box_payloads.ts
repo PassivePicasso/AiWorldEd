@@ -9,6 +9,12 @@ export interface GreyBoxNodePayload {
   greyBoxId: string;
   name: string;
   description: string;
+  /** Gameplay function of the volume. */
+  role: string;
+  /** Volume this one sits inside, or null when it is a root. */
+  parentGreyBoxId: string | null;
+  /** Nesting depth, zero for a root. */
+  depth: number;
   center: { x: number; y: number; z: number };
   size: { x: number; y: number; z: number };
 }
@@ -52,6 +58,9 @@ export function serializeGreyBoxNode(node: GreyBoxGraphNode): GreyBoxNodePayload
     greyBoxId: node.id,
     name: node.name,
     description: node.description,
+    role: node.role,
+    parentGreyBoxId: node.parentId,
+    depth: node.depth,
     center: { x: node.center.x, y: node.center.y, z: node.center.z },
     size: { x: node.size.x, y: node.size.y, z: node.size.z },
   };

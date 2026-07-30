@@ -1,4 +1,5 @@
 import { GreyBoxExplicitConnection, cloneExplicitConnection } from './grey_box_connection.js';
+import { DEFAULT_GREY_BOX_ROLE, GreyBoxRole } from './grey_box_role.js';
 
 /**
  * Semantic payload of a grey box. The volume itself is the mesh geometry and
@@ -10,6 +11,12 @@ export interface GreyBoxData {
 
   /** User-authored purpose of the volume. Empty string is a legal value. */
   description: string;
+
+  /**
+   * Gameplay function of the volume, from the documented vocabulary or any
+   * other string the user chose.
+   */
+  role: GreyBoxRole;
 
   /** Connections the user stated explicitly. */
   explicitConnections: GreyBoxExplicitConnection[];
@@ -28,13 +35,18 @@ export interface GreyBoxData {
  *   unwritten.
  * @returns New grey box data with no connections.
  */
-export function createGreyBoxData(id: string, description: string): GreyBoxData {
+export function createGreyBoxData(
+  id: string,
+  description: string,
+  role: GreyBoxRole = DEFAULT_GREY_BOX_ROLE,
+): GreyBoxData {
   if (id.length === 0) {
     throw new Error('Grey box data requires a non-empty id');
   }
   return {
     id,
     description,
+    role,
     explicitConnections: [],
     suppressedDerivedConnections: [],
   };
@@ -50,6 +62,7 @@ export function cloneGreyBoxData(data: GreyBoxData): GreyBoxData {
   return {
     id: data.id,
     description: data.description,
+    role: data.role,
     explicitConnections: data.explicitConnections.map((connection) => cloneExplicitConnection(connection)),
     suppressedDerivedConnections: data.suppressedDerivedConnections.slice(),
   };

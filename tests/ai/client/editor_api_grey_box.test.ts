@@ -11,7 +11,7 @@ import { SnapManager } from '../../../src/transform/snap/snap_manager.js';
 import { SolidModel } from '../../../src/solid/model/solid_model.js';
 import { SolidOperation } from '../../../src/solid/types/solid_operation.js';
 import { GreyBoxRegistry } from '../../../src/greybox/model/grey_box_registry.js';
-import { getGreyBoxDescription } from '../../../src/greybox/model/grey_box_access.js';
+import { getGreyBoxDescription, getGreyBoxRole } from '../../../src/greybox/model/grey_box_access.js';
 import { listGreyBoxConnections } from '../../../src/greybox/model/grey_box_connection_access.js';
 import { computeGreyBoxWorldSize } from '../../../src/greybox/model/grey_box_volume.js';
 
@@ -221,6 +221,35 @@ describe('EditorApi grey box tools', () => {
     expect(result.message).toContain('greylink-missing');
   });
 
+  it('reports the role of every volume', () => {
+    api.invokeTool('create_grey_box', { name: 'Bridge', role: 'bridge', size: { x: 10, y: 2, z: 4 } });
+    const boxes = payload(api.invokeTool('list_grey_boxes'))['greyBoxes'] as Array<Record<string, unknown>>;
+    expect(boxes[0]!['role']).toBe('bridge');
+  });
+
+  it('sets a role and undoes it', () => {
+    const greyBoxId = createVolume(api, 'Room', { x: 0, y: 0, z: 0 });
+    expect(api.invokeTool('set_grey_box_role', { greyBoxId, role: 'ravine' }).ok).toBe(true);
+    expect(getGreyBoxRole(GreyBoxRegistry.findById(world, greyBoxId)!)).toBe('ravine');
+    api.invokeTool('undo');
+    expect(getGreyBoxRole(GreyBoxRegistry.findById(world, greyBoxId)!)).toBe('room');
+  });
+
+  it('accepts a role outside the documented set', () => {
+    const greyBoxId = createVolume(api, 'Odd', { x: 0, y: 0, z: 0 });
+    expect(api.invokeTool('set_grey_box_role', { greyBoxId, role: 'my_weird_thing' }).ok).toBe(true);
+    expect(getGreyBoxRole(GreyBoxRegistry.findById(world, greyBoxId)!)).toBe('my_weird_thing');
+  });
+
+  it('reports parent and depth for a nested volume', () => {
+    createVolume(api, 'Hall', { x: 0, y: 0, z: 0 }, undefined, { x: 40, y: 20, z: 40 });
+    const ledgeId = createVolume(api, 'Ledge', { x: 5, y: 0, z: 5 }, undefined, { x: 6, y: 2, z: 6 });
+    const boxes = payload(api.invokeTool('list_grey_boxes'))['greyBoxes'] as Array<Record<string, unknown>>;
+    const ledge = boxes.find((box) => box['greyBoxId'] === ledgeId)!;
+    expect(ledge['parentGreyBoxId']).not.toBeNull();
+    expect(ledge['depth']).toBe(1);
+  });
+
   it('reports grey box count in the editor context', () => {
     createVolume(api, 'Room', { x: 0, y: 0, z: 0 });
     const data = payload(api.invokeTool('get_editor_context'));
@@ -243,6 +272,7 @@ describe('EditorApi grey box tools', () => {
  * @param name Volume name.
  * @param center World center.
  * @param description Optional description.
+ * @param size Optional volume size.
  * @returns New grey box id.
  */
 function createVolume(
@@ -250,8 +280,9 @@ function createVolume(
   name: string,
   center: { x: number; y: number; z: number },
   description?: string,
+  size: { x: number; y: number; z: number } = { x: 10, y: 10, z: 10 },
 ): string {
-  const args: Record<string, unknown> = { name, center, size: { x: 10, y: 10, z: 10 } };
+  const args: Record<string, unknown> = { name, center, size };
   if (description !== undefined) args['description'] = description;
   const result = api.invokeTool('create_grey_box', args);
   expect(result.ok).toBe(true);

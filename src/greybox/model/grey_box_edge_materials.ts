@@ -1,5 +1,6 @@
 import * as THREE from 'three';
 import { Theme } from '../../theme.js';
+import { GreyBoxRole } from './grey_box_role.js';
 
 /** UserData flag marking the shared grey box outline material (never disposed). */
 export const GREY_BOX_SHARED_MATERIAL_KEY = 'isSharedGreyBoxOutlineMaterial';
@@ -65,19 +66,34 @@ const OUTLINE_FRAGMENT_SHADER = `
  * agent builds inside them.
  */
 export class GreyBoxEdgeMaterials {
-  private static shared: THREE.ShaderMaterial | null = null;
+  private static byRole = new Map<GreyBoxRole, THREE.ShaderMaterial>();
   private static depthOcclusionEnabled = true;
 
   /**
-   * Returns the shared grey box outline material.
+   * Returns the shared outline material for a role, creating it on first use.
+   * One material per role rather than per volume, so a layout of many volumes
+   * still draws from a handful of materials.
    *
-   * @returns Shared outline material.
+   * @param role Gameplay role of the volume.
+   * @returns Shared outline material for that role.
    */
-  static getOutlineMaterial(): THREE.ShaderMaterial {
-    if (!this.shared) {
-      this.shared = this.createMaterial();
-    }
-    return this.shared;
+  static getOutlineMaterial(role: GreyBoxRole): THREE.ShaderMaterial {
+    const existing = this.byRole.get(role);
+    if (existing) return existing;
+    const material = this.createMaterial(role);
+    this.byRole.set(role, material);
+    return material;
+  }
+
+  /**
+   * Returns the colour a role draws in, falling back to the neutral grey box
+   * edge colour for a role the theme has no entry for.
+   *
+   * @param role Gameplay role of the volume.
+   * @returns Hex colour.
+   */
+  static colorForRole(role: GreyBoxRole): number {
+    return Theme.greyBoxRoleColors[role] ?? Theme.greyBoxEdgeColor;
   }
 
   /**
@@ -90,9 +106,7 @@ export class GreyBoxEdgeMaterials {
   static setDepthOcclusionEnabled(enabled: boolean): void {
     if (this.depthOcclusionEnabled === enabled) return;
     this.depthOcclusionEnabled = enabled;
-    if (this.shared) {
-      this.applyDepthMode(this.shared, enabled);
-    }
+    this.byRole.forEach((material) => this.applyDepthMode(material, enabled));
   }
 
   /**
@@ -116,14 +130,15 @@ export class GreyBoxEdgeMaterials {
   }
 
   /**
-   * Builds the shared outline material.
+   * Builds the shared outline material for one role.
    *
+   * @param role Gameplay role the material draws.
    * @returns Configured shader material.
    */
-  private static createMaterial(): THREE.ShaderMaterial {
+  private static createMaterial(role: GreyBoxRole): THREE.ShaderMaterial {
     const material = new THREE.ShaderMaterial({
       uniforms: {
-        diffuse: { value: new THREE.Color(Theme.greyBoxEdgeColor) },
+        diffuse: { value: new THREE.Color(this.colorForRole(role)) },
         opacity: { value: GREY_BOX_EDGE_OPACITY },
         fadeNear: { value: GREY_BOX_EDGE_FADE_NEAR },
         fadeFar: { value: GREY_BOX_EDGE_FADE_FAR },

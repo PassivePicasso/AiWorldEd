@@ -15,8 +15,10 @@ import {
 import { BoundsResizeCommand } from '../../commands/transform/bounds_resize_command.js';
 import { GreyBoxRegistry } from '../../greybox/model/grey_box_registry.js';
 import { createGreyBoxMesh, DEFAULT_GREY_BOX_SIZE } from '../../greybox/model/grey_box_factory.js';
+import { DEFAULT_GREY_BOX_ROLE } from '../../greybox/model/grey_box_role.js';
 import { allocateGreyBoxName } from '../../greybox/model/grey_box_naming.js';
 import { setGreyBoxDescription } from '../../greybox/model/grey_box_access.js';
+import { SetGreyBoxRoleCommand } from '../../commands/greybox/set_grey_box_role_command.js';
 import { greyBoxPairKey } from '../../greybox/model/grey_box_pair_key.js';
 import { computeGreyBoxLocalSize } from '../../greybox/model/grey_box_volume.js';
 import { listGreyBoxConnections } from '../../greybox/model/grey_box_connection_access.js';
@@ -52,7 +54,7 @@ export class EditorApiGreyBoxWrites {
   createGreyBox(args: CreateGreyBoxArgs): McpToolResult {
     const size = args.size ?? { x: DEFAULT_GREY_BOX_SIZE, y: DEFAULT_GREY_BOX_SIZE, z: DEFAULT_GREY_BOX_SIZE };
     const name = args.name && args.name.length > 0 ? args.name : allocateGreyBoxName(this.host.worldObject);
-    const mesh = createGreyBoxMesh(name, size.x, size.y, size.z);
+    const mesh = createGreyBoxMesh(name, size.x, size.y, size.z, args.role ?? DEFAULT_GREY_BOX_ROLE);
     if (args.center) mesh.position.set(args.center.x, args.center.y, args.center.z);
     if (args.description) setGreyBoxDescription(mesh, args.description);
     this.host.commandStack.push(new CreateGreyBoxCommand(mesh, this.host.worldObject));
@@ -92,6 +94,21 @@ export class EditorApiGreyBoxWrites {
     this.host.commandStack.push(SetGreyBoxDescriptionCommand.fromCurrent(mesh, description));
     this.afterMutation();
     return { ok: true, message: `Set description on grey box ${greyBoxId}`, data: { greyBoxId, description } };
+  }
+
+  /**
+   * Sets a grey box gameplay role.
+   *
+   * @param greyBoxId Volume to reclassify.
+   * @param role New role.
+   * @returns Tool result.
+   */
+  setGreyBoxRole(greyBoxId: string, role: string): McpToolResult {
+    const mesh = this.resolve(greyBoxId);
+    if (!mesh) return unknownGreyBox(greyBoxId);
+    this.host.commandStack.push(SetGreyBoxRoleCommand.fromCurrent(mesh, role));
+    this.afterMutation();
+    return { ok: true, message: `Set role "${role}" on grey box ${greyBoxId}`, data: { greyBoxId, role } };
   }
 
   /**

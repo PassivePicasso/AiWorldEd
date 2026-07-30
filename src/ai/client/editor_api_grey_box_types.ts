@@ -4,6 +4,7 @@ import type { McpVec3 } from '../shared/mcp_protocol_types.js';
 export interface CreateGreyBoxArgs {
   name?: string;
   description?: string;
+  role?: string;
   center?: McpVec3;
   size?: McpVec3;
 }
