@@ -3,13 +3,15 @@ import type { EditorApiHost } from './editor_api_host.js';
 import type { McpToolResult } from '../shared/mcp_protocol_types.js';
 import { GreyBoxRegistry } from '../../greybox/model/grey_box_registry.js';
 import { buildGreyBoxSceneGraph } from '../../greybox/connectivity/grey_box_scene_graph.js';
+import type { GreyBoxMergedGraph } from '../../greybox/connectivity/grey_box_graph_types.js';
 import { computeGreyBoxWorldBounds, computeGreyBoxWorldSize } from '../../greybox/model/grey_box_volume.js';
 import { serializeGreyBoxGraph, serializeGreyBoxNode } from './grey_box_payloads.js';
-import { computeGreyBoxOccupancy, readGreyBoxOccupancy } from './grey_box_occupancy.js';
+import { GreyBoxOccupancyPayload, computeGreyBoxOccupancy, readGreyBoxOccupancy } from './grey_box_occupancy.js';
 
 /**
- * Grey box read tools: the layout an agent builds against. Reads never mutate
- * the scene.
+ * Grey box read tools: the layout an agent builds against. A blockout is a
+ * hierarchy, so every read reports where a volume sits in it. Reads never
+ * mutate the scene.
  */
 export class EditorApiGreyBoxReads {
   private readonly host: EditorApiHost;
@@ -24,25 +26,27 @@ export class EditorApiGreyBoxReads {
   }
 
   /**
-   * Lists every grey box with its identity, description, and volume.
+   * Lists every grey box with its identity, role, intent, and place in the
+   * hierarchy.
    *
    * @returns Tool result with the volume list.
    */
   listGreyBoxes(): McpToolResult {
     const graph = buildGreyBoxSceneGraph(this.host.worldObject);
+    const occupancy = this.occupancyFor(graph);
     return {
       ok: true,
-      message: `${graph.nodes.length} grey box planning volume(s)`,
+      message: `${graph.nodes.length} grey box planning volume(s), ${graph.tree.rootIds.length} outermost`,
       data: {
-        greyBoxes: graph.nodes.map((node) => serializeGreyBoxNode(node)),
+        greyBoxes: graph.nodes.map((node) => serializeGreyBoxNode(node, graph, occupancy)),
         count: graph.nodes.length,
       },
     };
   }
 
   /**
-   * Returns one grey box in full, including its connections and what already
-   * occupies it.
+   * Returns one grey box in full: role, intent, children, relations, and what
+   * has already been built inside it.
    *
    * @param greyBoxId Id of the volume to read.
    * @returns Tool result with the volume detail.
@@ -53,35 +57,47 @@ export class EditorApiGreyBoxReads {
     const graph = buildGreyBoxSceneGraph(this.host.worldObject);
     const node = graph.nodes.find((candidate) => candidate.id === greyBoxId);
     if (!node) return { ok: false, message: `Unknown greyBoxId: ${greyBoxId}` };
-    const occupancy = readGreyBoxOccupancy(computeGreyBoxOccupancy(this.host.worldObject, graph), greyBoxId);
+    const occupancy = this.occupancyFor(graph);
+    const built = readGreyBoxOccupancy(occupancy, greyBoxId);
     return {
       ok: true,
-      message: occupancy.empty
-        ? `Grey box "${node.name}" is empty and ready to build in`
-        : `Grey box "${node.name}" already holds ${occupancy.subtreeBrushCount} brush(es) in its subtree`,
+      message: describeVolume(node.name, built),
       data: {
-        greyBox: serializeGreyBoxNode(node),
+        greyBox: serializeGreyBoxNode(node, graph, occupancy),
         bounds: boundsPayload(computeGreyBoxWorldBounds(mesh)),
         size: vectorPayload(computeGreyBoxWorldSize(mesh)),
-        connections: serializeGreyBoxGraph(graph, greyBoxId).edges,
-        occupancy,
+        connections: serializeGreyBoxGraph(graph, occupancy, greyBoxId).edges,
+        occupancy: built,
       },
     };
   }
 
   /**
-   * Returns the whole merged layout graph.
+   * Returns the whole merged layout graph: hierarchy, relations, and build
+   * order.
    *
-   * @returns Tool result with nodes, edges, mutes, and problems.
+   * @returns Tool result with the layout brief.
    */
   getGreyBoxGraph(): McpToolResult {
     const graph = buildGreyBoxSceneGraph(this.host.worldObject);
     const problemNote = graph.problems.length > 0 ? `, ${graph.problems.length} unresolved link(s)` : '';
     return {
       ok: true,
-      message: `${graph.nodes.length} volume(s), ${graph.edges.length} connection(s)${problemNote}`,
-      data: serializeGreyBoxGraph(graph, null),
+      message:
+        `${graph.nodes.length} volume(s) in ${graph.tree.rootIds.length} outermost space(s), ` +
+        `${graph.edges.length} relation(s)${problemNote}`,
+      data: serializeGreyBoxGraph(graph, this.occupancyFor(graph), null),
     };
+  }
+
+  /**
+   * Computes occupancy for a graph.
+   *
+   * @param graph Merged layout graph.
+   * @returns Occupancy per grey box id.
+   */
+  private occupancyFor(graph: GreyBoxMergedGraph): Map<string, GreyBoxOccupancyPayload> {
+    return computeGreyBoxOccupancy(this.host.worldObject, graph);
   }
 
   /**
@@ -95,6 +111,18 @@ export class EditorApiGreyBoxReads {
     if (!found || !(found instanceof THREE.Mesh)) return null;
     return found;
   }
+}
+
+/**
+ * Builds a one-line summary of what a volume holds.
+ *
+ * @param name Volume name.
+ * @param built Occupancy for the volume.
+ * @returns Human-readable summary.
+ */
+function describeVolume(name: string, built: GreyBoxOccupancyPayload): string {
+  if (built.empty) return `Grey box "${name}" is empty and ready to build in`;
+  return `Grey box "${name}" holds ${built.subtreeBrushCount} brush(es) including nested volumes`;
 }
 
 /**

@@ -74,7 +74,24 @@ describe('MCP tool catalog coverage', () => {
   it('keeps the grey box graph tool discoverable by its purpose', () => {
     const description = findMcpTool('get_grey_box_graph')!.description.toLowerCase();
     expect(description).toContain('layout');
-    expect(description).toContain('derived');
+    expect(description).toContain('hierarchy');
+    expect(description).toContain('buildorder');
+  });
+
+  it('tells an agent that volumes nest and what fixity obliges', () => {
+    for (const name of ['list_grey_boxes', 'get_grey_box', 'create_grey_box']) {
+      expect(findMcpTool(name)!.description.toLowerCase(), name).toContain('nest');
+    }
+    for (const name of ['list_grey_boxes', 'get_grey_box', 'set_grey_box_intent']) {
+      const description = findMcpTool(name)!.description.toLowerCase();
+      expect(description, name).toContain('exact');
+      expect(description, name).toContain('approximate');
+    }
+  });
+
+  it('says nesting and intersection are normal rather than mistakes', () => {
+    const description = findMcpTool('get_grey_box_graph')!.description.toLowerCase();
+    expect(description).toContain('normal in a blockout');
   });
 
   it('lists more tools than before grey boxes were added', () => {

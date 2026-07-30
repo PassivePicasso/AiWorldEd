@@ -6,19 +6,29 @@ import { McpToolDefinition, emptySchema, tool, vec3Schema } from './mcp_tool_bui
  */
 const GREY_BOX_PURPOSE =
   'Grey boxes are planning volumes, not geometry: they never compile into solid output and never export. ' +
-  'Read them as the brief for what to build, then author real CSG brushes inside them.';
+  'They NEST: a volume contained by another describes a feature within that space - a ravine in a hall, a bridge ' +
+  'over the ravine - not a separate room. Read them as the brief, then author real CSG brushes inside them.';
+
+/** The fixity contract, repeated wherever an agent might act on dimensions. */
+const GREY_BOX_FIXITY =
+  'sizeIntent "exact" means the volume is measured and you must build to its dimensions; "approximate" means the ' +
+  'shape is a suggestion you may refine.';
 
 /** Grey box layout reading and authoring tools. */
 export const GREY_BOX_TOOL_DEFINITIONS: McpToolDefinition[] = [
   tool(
     'list_grey_boxes',
-    `Every grey box with id, name, description, world bounds, and size. Call first when building to a layout. ${GREY_BOX_PURPOSE}`,
+    `Every grey box with id, name, description, role, size intent, surface hints, parent, children, depth, and ` +
+      `what has already been built inside it. Call first when building to a layout. ${GREY_BOX_PURPOSE} ` +
+      `${GREY_BOX_FIXITY}`,
     emptySchema(),
   ),
   tool(
     'get_grey_box',
-    `One grey box in full: name, description, bounds, its merged connections, and what already occupies it ` +
-      `(solid models and brush counts inside its volume) so you can tell an empty volume from a populated one. ${GREY_BOX_PURPOSE}`,
+    `One grey box in full: name, description, role, size intent, surface hints, its children, its relations, and ` +
+      `what already occupies it. ownBrushCount is what was built in this volume itself; subtreeBrushCount includes ` +
+      `everything nested inside, so you can tell an untouched volume from one you have already filled. ` +
+      `${GREY_BOX_PURPOSE} ${GREY_BOX_FIXITY}`,
     {
       type: 'object',
       properties: { greyBoxId: { type: 'string' } },
@@ -27,21 +37,30 @@ export const GREY_BOX_TOOL_DEFINITIONS: McpToolDefinition[] = [
   ),
   tool(
     'get_grey_box_graph',
-    'The whole layout graph in one call: nodes with name and description, edges with kind, direction, shared-face ' +
-      'rect and area, and whether each edge is derived from geometry or authored by the user. Muted adjacencies and ' +
-      'unresolved authored links are reported separately. Use this to plan a level that follows the blocked-out layout.',
+    'The whole layout brief in one call. rootGreyBoxIds are the outermost spaces; each node carries its parent, ' +
+      'children, and depth, so the layout reads as a hierarchy. buildOrder suggests working outside in - a shell ' +
+      'before the features cut into it - and is guidance, not a requirement. Edges carry every relation a pair holds: ' +
+      '"contains" with a containment ratio, "adjacent" with the shared-face rect you size a doorway against, and ' +
+      '"overlaps" with the intersecting region. Authored links add routes geometry cannot imply, such as an elevator ' +
+      'or a one-way drop. Muted adjacencies and unresolved links are reported separately. ' +
+      'Nesting and intersection are normal in a blockout, not mistakes to fix.',
     emptySchema(),
   ),
-  tool('create_grey_box', `Create a grey box planning volume (undoable). ${GREY_BOX_PURPOSE}`, {
-    type: 'object',
-    properties: {
-      name: { type: 'string', description: 'Display name; auto-named when omitted.' },
-      description: { type: 'string', description: 'Purpose of the volume, read back by layout tools.' },
-      role: { type: 'string', description: 'Gameplay role; see set_grey_box_role for the known set.' },
-      center: vec3Schema,
-      size: vec3Schema,
+  tool(
+    'create_grey_box',
+    `Create a grey box planning volume (undoable). Place it inside an existing volume to describe a feature of ` +
+      `that space. ${GREY_BOX_PURPOSE}`,
+    {
+      type: 'object',
+      properties: {
+        name: { type: 'string', description: 'Display name; auto-named when omitted.' },
+        description: { type: 'string', description: 'Purpose of the volume, read back by layout tools.' },
+        role: { type: 'string', description: 'Gameplay role; see set_grey_box_role for the known set.' },
+        center: vec3Schema,
+        size: vec3Schema,
+      },
     },
-  }),
+  ),
   tool('rename_grey_box', 'Rename a grey box (undoable).', {
     type: 'object',
     properties: {

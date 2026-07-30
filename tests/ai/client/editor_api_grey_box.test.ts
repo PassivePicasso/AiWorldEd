@@ -285,6 +285,63 @@ describe('EditorApi grey box tools', () => {
     expect(result.message).toContain('sizeIntent');
   });
 
+  it('reports the containment tree and build order', () => {
+    const hallId = createVolume(api, 'Hall', { x: 0, y: 0, z: 0 }, undefined, { x: 40, y: 20, z: 40 });
+    const ravineId = createVolume(api, 'Ravine', { x: 0, y: -4, z: 0 }, undefined, { x: 20, y: 8, z: 10 });
+    const data = payload(api.invokeTool('get_grey_box_graph'));
+    expect(data['rootGreyBoxIds']).toEqual([hallId]);
+    const order = data['buildOrder'] as string[];
+    expect(order.indexOf(hallId)).toBeLessThan(order.indexOf(ravineId));
+  });
+
+  it('lists a volume children on its node', () => {
+    const hallId = createVolume(api, 'Hall', { x: 0, y: 0, z: 0 }, undefined, { x: 40, y: 20, z: 40 });
+    const ledgeId = createVolume(api, 'Ledge', { x: 8, y: 0, z: 8 }, undefined, { x: 6, y: 2, z: 6 });
+    const detail = payload(api.invokeTool('get_grey_box', { greyBoxId: hallId }));
+    const node = detail['greyBox'] as Record<string, unknown>;
+    expect(node['childGreyBoxIds']).toEqual([ledgeId]);
+  });
+
+  it('reports containment as an edge relation with its ratio', () => {
+    createVolume(api, 'Hall', { x: 0, y: 0, z: 0 }, undefined, { x: 40, y: 20, z: 40 });
+    createVolume(api, 'Pillar', { x: 0, y: 0, z: 0 }, undefined, { x: 4, y: 20, z: 4 });
+    const edges = payload(api.invokeTool('get_grey_box_graph'))['edges'] as Array<Record<string, unknown>>;
+    expect(edges[0]!['relations']).toContain('contains');
+    const containment = edges[0]!['containment'] as Record<string, unknown>;
+    expect(containment['ratio']).toBeGreaterThan(0.6);
+  });
+
+  it('separates own and subtree brush counts across nesting', () => {
+    const hallId = createVolume(api, 'Hall', { x: 0, y: 0, z: 0 }, undefined, { x: 40, y: 20, z: 40 });
+    const ledgeId = createVolume(api, 'Ledge', { x: 0, y: 0, z: 0 }, undefined, { x: 8, y: 4, z: 8 });
+    const model = new SolidModel('Built');
+    model.addBoxBrush(2, SolidOperation.Additive);
+    world.add(model.root);
+    model.root.updateMatrixWorld(true);
+    const boxes = payload(api.invokeTool('list_grey_boxes'))['greyBoxes'] as Array<Record<string, unknown>>;
+    const hall = boxes.find((box) => box['greyBoxId'] === hallId)!;
+    const ledge = boxes.find((box) => box['greyBoxId'] === ledgeId)!;
+    expect(ledge['ownBrushCount']).toBe(1);
+    expect(hall['ownBrushCount']).toBe(0);
+    expect(hall['subtreeBrushCount']).toBe(1);
+    expect(hall['empty']).toBe(false);
+  });
+
+  it('keeps build order stable across calls', () => {
+    createVolume(api, 'Hall', { x: 0, y: 0, z: 0 }, undefined, { x: 40, y: 20, z: 40 });
+    createVolume(api, 'Ledge', { x: 8, y: 0, z: 8 }, undefined, { x: 6, y: 2, z: 6 });
+    const first = payload(api.invokeTool('get_grey_box_graph'))['buildOrder'] as string[];
+    const second = payload(api.invokeTool('get_grey_box_graph'))['buildOrder'] as string[];
+    expect(second).toEqual(first);
+  });
+
+  it('includes every volume in the build order even with no nesting', () => {
+    createVolume(api, 'A', { x: 0, y: 0, z: 0 });
+    createVolume(api, 'B', { x: 100, y: 0, z: 0 });
+    const order = payload(api.invokeTool('get_grey_box_graph'))['buildOrder'] as string[];
+    expect(order.length).toBe(2);
+  });
+
   it('reports grey box count in the editor context', () => {
     createVolume(api, 'Room', { x: 0, y: 0, z: 0 });
     const data = payload(api.invokeTool('get_editor_context'));

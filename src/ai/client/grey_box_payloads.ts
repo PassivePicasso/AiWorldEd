@@ -3,6 +3,7 @@ import type {
   GreyBoxGraphNode,
   GreyBoxMergedGraph,
 } from '../../greybox/connectivity/grey_box_graph_types.js';
+import { GreyBoxOccupancyPayload, readGreyBoxOccupancy } from './grey_box_occupancy.js';
 
 /** Serialized grey box node for MCP payloads. */
 export interface GreyBoxNodePayload {
@@ -17,10 +18,20 @@ export interface GreyBoxNodePayload {
   surface: { floor: string; wall: string; ceiling: string; mood: string };
   /** Volume this one sits inside, or null when it is a root. */
   parentGreyBoxId: string | null;
+  /** Volumes nested directly inside this one. */
+  childGreyBoxIds: string[];
   /** Nesting depth, zero for a root. */
   depth: number;
+  /** Whether the parent was stated by the user rather than derived. */
+  authoredParent: boolean;
   center: { x: number; y: number; z: number };
   size: { x: number; y: number; z: number };
+  /** Brushes built in this volume rather than in one nested inside it. */
+  ownBrushCount: number;
+  /** Brushes built in this volume or anything nested inside it. */
+  subtreeBrushCount: number;
+  /** True when nothing has been built here or below. */
+  empty: boolean;
 }
 
 /** Serialized graph edge for MCP payloads. */
@@ -46,18 +57,34 @@ export interface GreyBoxEdgePayload {
 /** Serialized merged graph for MCP payloads. */
 export interface GreyBoxGraphPayload {
   greyBoxes: GreyBoxNodePayload[];
+  /** Volumes with no parent: the outermost spaces of the layout. */
+  rootGreyBoxIds: string[];
+  /**
+   * Suggested order to build in: a parent before anything nested inside it.
+   * Guidance, not a requirement.
+   */
+  buildOrder: string[];
   edges: GreyBoxEdgePayload[];
   mutedAdjacencies: string[];
   problems: Array<{ connectionId: string; fromGreyBoxId: string; toGreyBoxId: string; message: string }>;
 }
 
 /**
- * Serializes one grey box node.
+ * Serializes one grey box node, including its place in the hierarchy and what
+ * has already been built inside it.
  *
  * @param node Graph node.
+ * @param graph Merged graph supplying the hierarchy.
+ * @param occupancy Occupancy per grey box id.
  * @returns MCP node payload.
  */
-export function serializeGreyBoxNode(node: GreyBoxGraphNode): GreyBoxNodePayload {
+export function serializeGreyBoxNode(
+  node: GreyBoxGraphNode,
+  graph: GreyBoxMergedGraph,
+  occupancy: Map<string, GreyBoxOccupancyPayload>,
+): GreyBoxNodePayload {
+  const treeNode = graph.tree.nodes.get(node.id);
+  const built = readGreyBoxOccupancy(occupancy, node.id);
   return {
     greyBoxId: node.id,
     name: node.name,
@@ -66,9 +93,14 @@ export function serializeGreyBoxNode(node: GreyBoxGraphNode): GreyBoxNodePayload
     sizeIntent: node.sizeIntent,
     surface: { ...node.surface },
     parentGreyBoxId: node.parentId,
+    childGreyBoxIds: treeNode ? [...treeNode.childIds] : [],
     depth: node.depth,
+    authoredParent: node.authoredParent,
     center: { x: node.center.x, y: node.center.y, z: node.center.z },
     size: { x: node.size.x, y: node.size.y, z: node.size.z },
+    ownBrushCount: built.ownBrushCount,
+    subtreeBrushCount: built.subtreeBrushCount,
+    empty: built.empty,
   };
 }
 
@@ -77,16 +109,23 @@ export function serializeGreyBoxNode(node: GreyBoxGraphNode): GreyBoxNodePayload
  * volume.
  *
  * @param graph Merged layout graph.
+ * @param occupancy Occupancy per grey box id.
  * @param onlyForGreyBoxId Volume to filter edges by, or null for the whole
  *   graph.
  * @returns MCP graph payload.
  */
-export function serializeGreyBoxGraph(graph: GreyBoxMergedGraph, onlyForGreyBoxId: string | null): GreyBoxGraphPayload {
+export function serializeGreyBoxGraph(
+  graph: GreyBoxMergedGraph,
+  occupancy: Map<string, GreyBoxOccupancyPayload>,
+  onlyForGreyBoxId: string | null,
+): GreyBoxGraphPayload {
   const edges = graph.edges.filter(
     (edge) => onlyForGreyBoxId === null || edge.firstId === onlyForGreyBoxId || edge.secondId === onlyForGreyBoxId,
   );
   return {
-    greyBoxes: graph.nodes.map((node) => serializeGreyBoxNode(node)),
+    greyBoxes: graph.nodes.map((node) => serializeGreyBoxNode(node, graph, occupancy)),
+    rootGreyBoxIds: [...graph.tree.rootIds],
+    buildOrder: buildOutsideInOrder(graph),
     edges: edges.map((edge) => serializeGreyBoxEdge(edge)),
     mutedAdjacencies: graph.suppressedPairKeys.slice(),
     problems: graph.problems.map((problem) => ({
@@ -99,8 +138,34 @@ export function serializeGreyBoxGraph(graph: GreyBoxMergedGraph, onlyForGreyBoxI
 }
 
 /**
+ * Builds the suggested build order: each root, then everything nested inside
+ * it, depth first. Parents come before their children so a shell can be built
+ * before the features cut into it. Volumes whose parent link was dropped to
+ * break a cycle still appear, at the end.
+ *
+ * @param graph Merged layout graph.
+ * @returns Grey box ids in suggested build order.
+ */
+export function buildOutsideInOrder(graph: GreyBoxMergedGraph): string[] {
+  const order: string[] = [];
+  const visited = new Set<string>();
+  const visit = (id: string): void => {
+    if (visited.has(id)) return;
+    visited.add(id);
+    order.push(id);
+    for (const childId of graph.tree.nodes.get(id)?.childIds ?? []) {
+      visit(childId);
+    }
+  };
+  graph.tree.rootIds.forEach((id) => visit(id));
+  graph.nodes.forEach((node) => visit(node.id));
+  return order;
+}
+
+/**
  * Serializes one graph edge, including the shared opening an agent needs to
- * size a doorway.
+ * size a doorway and the containment that makes one volume a feature of the
+ * other.
  *
  * @param edge Graph edge.
  * @returns MCP edge payload.
